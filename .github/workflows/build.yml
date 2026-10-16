@@ -30,17 +30,12 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # Explicit modern packages; do not request the obsolete "tools" package.
-          packages: |
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.0
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.6"
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          gradle-version: "8.9"
 
       - name: Generate Neer Android project
         shell: bash
@@ -75,7 +70,7 @@ jobs:
 
           write("build.gradle.kts", """
               plugins {
-                  id("com.android.application") version "8.4.2" apply false
+                  id("com.android.application") version "8.7.3" apply false
                   id("org.jetbrains.kotlin.android") version "1.9.24" apply false
               }
           """)
@@ -98,6 +93,7 @@ jobs:
               android {
                   namespace = "com.zen.neer"
                   compileSdk = 35
+                  buildToolsVersion = "35.0.0"
 
                   defaultConfig {
                       applicationId = "com.zen.neer"
@@ -171,18 +167,15 @@ jobs:
               package com.zen.neer
 
               import android.content.Context
-              import android.os.Build
               import android.os.Bundle
-              import android.os.VibrationEffect
-              import android.os.Vibrator
               import androidx.activity.ComponentActivity
               import androidx.activity.compose.setContent
               import androidx.compose.animation.AnimatedContent
               import androidx.compose.animation.AnimatedVisibility
-              import androidx.compose.animation.animateContentSize
-              import androidx.compose.animation.togetherWith
               import androidx.compose.animation.animateColorAsState
+              import androidx.compose.animation.animateContentSize
               import androidx.compose.animation.core.FastOutSlowInEasing
+              import androidx.compose.animation.core.LinearEasing
               import androidx.compose.animation.core.RepeatMode
               import androidx.compose.animation.core.animateFloat
               import androidx.compose.animation.core.animateFloatAsState
@@ -193,10 +186,11 @@ jobs:
               import androidx.compose.animation.fadeOut
               import androidx.compose.animation.slideInHorizontally
               import androidx.compose.animation.slideOutHorizontally
+              import androidx.compose.animation.togetherWith
               import androidx.compose.foundation.Canvas
               import androidx.compose.foundation.background
+              import androidx.compose.foundation.border
               import androidx.compose.foundation.clickable
-              import androidx.compose.foundation.interaction.MutableInteractionSource
               import androidx.compose.foundation.layout.*
               import androidx.compose.foundation.lazy.LazyColumn
               import androidx.compose.foundation.lazy.items
@@ -205,9 +199,9 @@ jobs:
               import androidx.compose.foundation.shape.RoundedCornerShape
               import androidx.compose.foundation.verticalScroll
               import androidx.compose.material.icons.Icons
-              import androidx.compose.material.icons.rounded.BookOpen
               import androidx.compose.material.icons.rounded.Check
               import androidx.compose.material.icons.rounded.ChevronRight
+              import androidx.compose.material.icons.rounded.MenuBook
               import androidx.compose.material.icons.rounded.Pause
               import androidx.compose.material.icons.rounded.PlayArrow
               import androidx.compose.material.icons.rounded.Refresh
@@ -218,8 +212,8 @@ jobs:
               import androidx.compose.runtime.*
               import androidx.compose.ui.Alignment
               import androidx.compose.ui.Modifier
-              import androidx.compose.ui.draw.alpha
               import androidx.compose.ui.draw.clip
+              import androidx.compose.ui.draw.rotate
               import androidx.compose.ui.draw.scale
               import androidx.compose.ui.geometry.Offset
               import androidx.compose.ui.geometry.Size
@@ -229,16 +223,13 @@ jobs:
               import androidx.compose.ui.hapticfeedback.HapticFeedbackType
               import androidx.compose.ui.platform.LocalContext
               import androidx.compose.ui.platform.LocalHapticFeedback
-              import androidx.compose.ui.semantics.Role
-              import androidx.compose.ui.semantics.contentDescription
-              import androidx.compose.ui.semantics.role
-              import androidx.compose.ui.semantics.semantics
               import androidx.compose.ui.text.font.FontFamily
               import androidx.compose.ui.text.font.FontStyle
               import androidx.compose.ui.text.font.FontWeight
               import androidx.compose.ui.text.style.TextAlign
               import androidx.compose.ui.unit.dp
               import androidx.compose.ui.unit.sp
+              import androidx.core.view.WindowCompat
               import kotlinx.coroutines.delay
               import java.util.Locale
 
@@ -252,7 +243,12 @@ jobs:
               private val Muted = Color(0xFF5A635E)
               private val Hairline = Color(0xFFD9D4C9)
 
+              private const val SIP_SECONDS = 5
+              private const val PAUSE_SECONDS = 5
+              private const val DAILY_GOAL = 8
+
               private enum class SipState { READY, SIP, PAUSE }
+
               private data class Infusion(
                   val name: String,
                   val tamil: String,
@@ -294,13 +290,13 @@ jobs:
               class MainActivity : ComponentActivity() {
                   override fun onCreate(savedInstanceState: Bundle?) {
                       super.onCreate(savedInstanceState)
+                      @Suppress("DEPRECATION")
                       window.statusBarColor = android.graphics.Color.rgb(245, 242, 235)
+                      @Suppress("DEPRECATION")
                       window.navigationBarColor = android.graphics.Color.rgb(245, 242, 235)
-                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                          window.decorView.systemUiVisibility =
-                              android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
-                              android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-                      }
+                      val controller = WindowCompat.getInsetsController(window, window.decorView)
+                      controller.isAppearanceLightStatusBars = true
+                      controller.isAppearanceLightNavigationBars = true
                       setContent {
                           val scheme = lightColorScheme(
                               primary = Moss, onPrimary = SurfaceWarm,
@@ -335,9 +331,14 @@ jobs:
                           prefs.edit().putString("pebbles_day", today).putInt("pebbles_count", 0).apply()
                       }
                   }
-                  fun completeSip() {
+
+                  val completeSip: () -> Unit = {
                       pebbles += 1
                       prefs.edit().putString("pebbles_day", today).putInt("pebbles_count", pebbles).apply()
+                  }
+                  val resetPebbles: () -> Unit = {
+                      pebbles = 0
+                      prefs.edit().putString("pebbles_day", today).putInt("pebbles_count", 0).apply()
                   }
 
                   Scaffold(
@@ -346,24 +347,23 @@ jobs:
                           NavigationBar(
                               containerColor = SurfaceWarm,
                               contentColor = Moss,
-                              tonalElevation = 0.dp,
-                              modifier = Modifier.height(76.dp)
+                              tonalElevation = 0.dp
                           ) {
                               NavigationBarItem(
                                   selected = tab == 0, onClick = { tab = 0 },
-                                  icon = { Icon(Icons.Rounded.WaterDrop, null, Modifier.size(21.dp)) },
+                                  icon = { Icon(Icons.Rounded.WaterDrop, contentDescription = null, modifier = Modifier.size(21.dp)) },
                                   label = { Text("Sip", fontSize = 11.sp) },
                                   colors = navColors()
                               )
                               NavigationBarItem(
                                   selected = tab == 1, onClick = { tab = 1 },
-                                  icon = { Icon(Icons.Rounded.SelfImprovement, null, Modifier.size(21.dp)) },
+                                  icon = { Icon(Icons.Rounded.SelfImprovement, contentDescription = null, modifier = Modifier.size(21.dp)) },
                                   label = { Text("Focus", fontSize = 11.sp) },
                                   colors = navColors()
                               )
                               NavigationBarItem(
                                   selected = tab == 2, onClick = { tab = 2 },
-                                  icon = { Icon(Icons.Rounded.BookOpen, null, Modifier.size(21.dp)) },
+                                  icon = { Icon(Icons.Rounded.MenuBook, contentDescription = null, modifier = Modifier.size(21.dp)) },
                                   label = { Text("Infusions", fontSize = 11.sp) },
                                   colors = navColors()
                               )
@@ -385,11 +385,8 @@ jobs:
                               label = "tab-transition"
                           ) { page ->
                               when (page) {
-                                  0 -> SipScreen(pebbles, ::completeSip) {
-                                      pebbles = 0
-                                      prefs.edit().putInt("pebbles_count", 0).apply()
-                                  }
-                                  1 -> FocusScreen(::completeSip)
+                                  0 -> SipScreen(pebbles, completeSip, resetPebbles)
+                                  1 -> FocusScreen(completeSip)
                                   else -> InfusionsScreen()
                               }
                           }
@@ -423,296 +420,348 @@ jobs:
               }
 
               @Composable
-              private fun SipScreen(count: Int, onComplete: () -> Unit, onReset: () -> Unit) {
-                  val context = LocalContext.current
-                  val haptics = LocalHapticFeedback.current
-                  var state by remember { mutableStateOf(SipState.READY) }
-                  var progress by remember { mutableFloatStateOf(0f) }
-                  var seal by remember { mutableFloatStateOf(0f) }
-                  var message by remember { mutableStateOf("A small pause. A clearer moment.") }
-                  var reflection by remember { mutableIntStateOf(0) }
-                  val reflections = listOf(
-                      "Let your shoulders soften. You have time for one quiet breath.",
-                      "Notice the temperature of the water, then return to the present.",
-                      "Unclench your jaw. Let this small pause be enough.",
-                      "நீர் இன்றி அமையாது உலகு · Without water, life cannot be."
-                  )
-                  LaunchedEffect(state) {
-                      if (state == SipState.SIP) {
-                          haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                          message = "Breathe in gently. Lift your glass."
-                          for (i in 1..120) {
-                              progress = i / 120f
-                              if (i == 40) message = "Sip slowly. No need to hurry."
-                              if (i == 80) message = "Swallow softly, then exhale."
-                              delay(100)
-                          }
-                          state = SipState.PAUSE
-                      } else if (state == SipState.PAUSE) {
-                          message = "Set your glass down. Take one easy breath."
-                          for (i in 1..28) { seal = i / 28f; delay(50) }
-                          haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                          onComplete()
-                          reflection = (reflection + 1) % reflections.size
-                          state = SipState.READY
-                      } else {
-                          progress = 0f
-                          seal = 0f
-                          message = "A small pause. A clearer moment."
+              private fun ProgressRing(
+                  progress: Float,
+                  color: Color,
+                  size: androidx.compose.ui.unit.Dp,
+                  modifier: Modifier = Modifier
+              ) {
+                  Canvas(modifier.size(size)) {
+                      val stroke = 10.dp.toPx()
+                      val inset = stroke / 2f
+                      val arcSize = Size(this.size.width - stroke, this.size.height - stroke)
+                      drawArc(
+                          color = Hairline, startAngle = -90f, sweepAngle = 360f, useCenter = false,
+                          topLeft = Offset(inset, inset), size = arcSize,
+                          style = Stroke(width = stroke, cap = StrokeCap.Round)
+                      )
+                      if (progress > 0f) {
+                          drawArc(
+                              color = color, startAngle = -90f,
+                              sweepAngle = 360f * progress.coerceIn(0f, 1f), useCenter = false,
+                              topLeft = Offset(inset, inset), size = arcSize,
+                              style = Stroke(width = stroke, cap = StrokeCap.Round)
+                          )
                       }
-                  }
-
-                  Column(
-                      Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                          .padding(horizontal = 24.dp).padding(top = 25.dp, bottom = 22.dp),
-                      horizontalAlignment = Alignment.CenterHorizontally
-                  ) {
-                      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                          Column(Modifier.weight(1f)) {
-                              Eyebrow("நீர்  ·  NEER ZEN")
-                              Spacer(Modifier.height(8.dp))
-                              Text("Return to your\nnatural rhythm.", fontSize = 30.sp,
-                                  lineHeight = 35.sp, fontFamily = FontFamily.Serif,
-                                  fontWeight = FontWeight.Medium, color = Ink)
-                              Spacer(Modifier.height(7.dp))
-                              Text("A little water. A little stillness.", color = Muted, fontSize = 13.sp)
-                          }
-                          Box(Modifier.size(44.dp).clip(CircleShape).background(SurfaceStone),
-                              contentAlignment = Alignment.Center) {
-                              Icon(Icons.Rounded.WaterDrop, null, tint = Moss, modifier = Modifier.size(22.dp))
-                          }
-                      }
-
-                      Spacer(Modifier.height(22.dp))
-                      Box(
-                          Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                              .background(SurfaceWarm).padding(vertical = 22.dp, horizontal = 16.dp),
-                          contentAlignment = Alignment.Center
-                      ) {
-                          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                              Box(Modifier.size(238.dp).semantics {
-                                  role = Role.Button
-                                  contentDescription = "Start mindful sip ritual"
-                              }.clickable(
-                                  interactionSource = remember { MutableInteractionSource() },
-                                  indication = null,
-                                  enabled = state == SipState.READY
-                              ) { state = SipState.SIP }, contentAlignment = Alignment.Center) {
-                                  Canvas(Modifier.fillMaxSize()) {
-                                      val r = size.minDimension * 0.385f
-                                      val topLeft = Offset(size.width / 2 - r, size.height / 2 - r)
-                                      val arcSize = Size(r * 2, r * 2)
-                                      drawArc(Sage.copy(alpha = 0.24f), -90f, 340f, false, topLeft, arcSize,
-                                          style = Stroke(width = 13.dp.toPx(), cap = StrokeCap.Round))
-                                      val sweep = when (state) {
-                                          SipState.READY -> 38f
-                                          SipState.SIP -> 340f * progress
-                                          SipState.PAUSE -> 340f
-                                      }
-                                      drawArc(Moss, -90f, sweep, false, topLeft, arcSize,
-                                          style = Stroke(width = 13.dp.toPx(), cap = StrokeCap.Round))
-                                      if (state == SipState.PAUSE) {
-                                          drawCircle(Clay.copy(alpha = (1f - seal).coerceIn(0f, 1f)),
-                                              radius = r * (0.3f + seal * 0.65f), style = Stroke(width = 2.dp.toPx()))
-                                      }
-                                  }
-                                  Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                      AnimatedContent(state, label = "sip-state") { current ->
-                                          when (current) {
-                                              SipState.READY -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                  Icon(Icons.Rounded.WaterDrop, null, tint = Clay, modifier = Modifier.size(25.dp))
-                                                  Spacer(Modifier.height(7.dp))
-                                                  Text("BEGIN", fontSize = 10.sp, letterSpacing = 2.4.sp,
-                                                      fontWeight = FontWeight.Bold, color = Clay)
-                                                  Text("12 second sip", fontSize = 13.sp, color = Muted)
-                                              }
-                                              SipState.SIP -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                  Text("${(12 - (progress * 12).toInt()).coerceAtLeast(0)}",
-                                                      fontSize = 43.sp, fontFamily = FontFamily.Serif, color = Moss)
-                                                  Text("SECONDS", fontSize = 9.sp, letterSpacing = 2.sp, color = Muted)
-                                              }
-                                              SipState.PAUSE -> Text("Stillness", fontSize = 20.sp,
-                                                  fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, color = Clay)
-                                          }
-                                      }
-                                  }
-                              }
-                              Spacer(Modifier.height(6.dp))
-                              Text(message, fontSize = 13.sp, color = Muted, textAlign = TextAlign.Center)
-                              Spacer(Modifier.height(14.dp))
-                              if (state == SipState.READY) {
-                                  Button(onClick = { state = SipState.SIP },
-                                      modifier = Modifier.fillMaxWidth().height(50.dp),
-                                      shape = RoundedCornerShape(16.dp),
-                                      colors = ButtonDefaults.buttonColors(containerColor = Moss)) {
-                                      Text("Begin mindful sip", fontWeight = FontWeight.SemiBold)
-                                      Spacer(Modifier.width(8.dp))
-                                      Icon(Icons.Rounded.ChevronRight, null, Modifier.size(18.dp))
-                                  }
-                              } else if (state == SipState.SIP) {
-                                  TextButton(onClick = { state = SipState.READY }) { Text("Cancel ritual", color = Muted) }
-                              } else {
-                                  Text("Let the moment settle", color = Clay, fontSize = 12.sp)
-                              }
-                          }
-                      }
-
-                      Spacer(Modifier.height(16.dp))
-                      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                          Card(Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
-                              colors = CardDefaults.cardColors(containerColor = SurfaceStone)) {
-                              Column(Modifier.padding(16.dp)) {
-                                  Eyebrow("TODAY")
-                                  Spacer(Modifier.height(8.dp))
-                                  Row(verticalAlignment = Alignment.CenterVertically) {
-                                      Text("$count", fontSize = 30.sp, fontFamily = FontFamily.Serif, color = Moss)
-                                      Spacer(Modifier.width(7.dp))
-                                      Text("quiet\nmoments", fontSize = 11.sp, lineHeight = 15.sp, color = Muted)
-                                  }
-                              }
-                          }
-                          Card(Modifier.weight(1.35f), shape = RoundedCornerShape(20.dp),
-                              colors = CardDefaults.cardColors(containerColor = SurfaceWarm)) {
-                              Column(Modifier.padding(16.dp)) {
-                                  Eyebrow("A THOUGHT")
-                                  Spacer(Modifier.height(7.dp))
-                                  Text(reflections[reflection], fontSize = 12.sp, lineHeight = 17.sp,
-                                      fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, color = Ink)
-                                  if (count > 0) {
-                                      Spacer(Modifier.height(4.dp))
-                                      Text("Reset count", fontSize = 10.sp, color = Clay,
-                                          modifier = Modifier.clickable { onReset() })
-                                  }
-                              }
-                          }
-                      }
-                      Spacer(Modifier.height(12.dp))
-                      Text("Slow down, not your day.", fontSize = 11.sp, color = Muted.copy(alpha = 0.8f),
-                          fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic)
                   }
               }
 
               @Composable
-              private fun FocusScreen(onSipCompleted: () -> Unit) {
-                  val haptics = LocalHapticFeedback.current
-                  var minutes by remember { mutableIntStateOf(25) }
-                  var remaining by remember { mutableIntStateOf(25 * 60) }
-                  var running by remember { mutableStateOf(false) }
-                  var completed by remember { mutableStateOf(false) }
-                  LaunchedEffect(running, remaining) {
-                      if (running && remaining > 0) {
+              private fun SipScreen(pebbles: Int, onSip: () -> Unit, onReset: () -> Unit) {
+                  val haptic = LocalHapticFeedback.current
+                  val latestOnSip by rememberUpdatedState(onSip)
+                  var state by remember { mutableStateOf(SipState.READY) }
+                  var secondsLeft by remember { mutableIntStateOf(0) }
+
+                  LaunchedEffect(state) {
+                      if (state == SipState.READY) return@LaunchedEffect
+                      while (secondsLeft > 0) {
                           delay(1000)
-                          remaining -= 1
-                      } else if (running && remaining == 0) {
-                          running = false
-                          completed = true
-                          haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                          secondsLeft -= 1
+                      }
+                      haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                      if (state == SipState.SIP) {
+                          secondsLeft = PAUSE_SECONDS
+                          state = SipState.PAUSE
+                      } else {
+                          latestOnSip()
+                          state = SipState.READY
                       }
                   }
-                  val fraction by animateFloatAsState(
-                      targetValue = if (minutes > 0) 1f - remaining.toFloat() / (minutes * 60f) else 0f,
-                      animationSpec = tween(450, easing = FastOutSlowInEasing), label = "focus-progress"
+
+                  val total = if (state == SipState.SIP) SIP_SECONDS else PAUSE_SECONDS
+                  val target = if (state == SipState.READY) 0f else 1f - secondsLeft / total.toFloat()
+                  val progress by animateFloatAsState(
+                      targetValue = target,
+                      animationSpec = tween(1000, easing = LinearEasing),
+                      label = "sip-ring"
+                  )
+                  val ringColor by animateColorAsState(
+                      targetValue = when (state) {
+                          SipState.READY -> Sage
+                          SipState.SIP -> Moss
+                          SipState.PAUSE -> Clay
+                      },
+                      animationSpec = tween(400),
+                      label = "sip-color"
+                  )
+                  val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
+                      initialValue = 1f,
+                      targetValue = 1.035f,
+                      animationSpec = infiniteRepeatable(
+                          animation = tween(2400, easing = FastOutSlowInEasing),
+                          repeatMode = RepeatMode.Reverse
+                      ),
+                      label = "pulse-scale"
+                  )
+
+                  Column(
+                      Modifier
+                          .fillMaxSize()
+                          .verticalScroll(rememberScrollState())
+                          .padding(horizontal = 24.dp, vertical = 20.dp),
+                      horizontalAlignment = Alignment.CenterHorizontally,
+                      verticalArrangement = Arrangement.spacedBy(26.dp)
+                  ) {
+                      Box(Modifier.fillMaxWidth()) {
+                          ScreenTitle("Sip slowly", "One mindful sip at a time. Each completed sip adds a pebble.")
+                      }
+
+                      Box(
+                          Modifier.scale(if (state == SipState.READY) pulse else 1f),
+                          contentAlignment = Alignment.Center
+                      ) {
+                          ProgressRing(progress = progress, color = ringColor, size = 220.dp)
+                          Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                              when (state) {
+                                  SipState.READY -> {
+                                      Text("Ready", fontSize = 30.sp, fontFamily = FontFamily.Serif, color = Ink)
+                                      Text("Take a slow sip", fontSize = 13.sp, color = Muted)
+                                  }
+                                  SipState.SIP -> {
+                                      Text("$secondsLeft", fontSize = 48.sp, fontFamily = FontFamily.Serif, color = Ink)
+                                      Text("Sip slowly", fontSize = 13.sp, color = Muted)
+                                  }
+                                  SipState.PAUSE -> {
+                                      Text("$secondsLeft", fontSize = 48.sp, fontFamily = FontFamily.Serif, color = Ink)
+                                      Text("Pause · breathe", fontSize = 13.sp, color = Muted)
+                                  }
+                              }
+                          }
+                      }
+
+                      if (state == SipState.READY) {
+                          Button(
+                              onClick = {
+                                  secondsLeft = SIP_SECONDS
+                                  state = SipState.SIP
+                              },
+                              shape = RoundedCornerShape(16.dp),
+                              colors = ButtonDefaults.buttonColors(containerColor = Moss, contentColor = SurfaceWarm),
+                              modifier = Modifier.fillMaxWidth().height(52.dp)
+                          ) {
+                              Icon(Icons.Rounded.WaterDrop, contentDescription = null, modifier = Modifier.size(18.dp))
+                              Spacer(Modifier.width(8.dp))
+                              Text("Begin a sip", fontSize = 15.sp)
+                          }
+                      } else {
+                          OutlinedButton(
+                              onClick = {
+                                  secondsLeft = 0
+                                  state = SipState.READY
+                              },
+                              shape = RoundedCornerShape(16.dp),
+                              modifier = Modifier.fillMaxWidth().height(52.dp)
+                          ) {
+                              Text("Stop", fontSize = 15.sp, color = Moss)
+                          }
+                      }
+
+                      Column(
+                          Modifier
+                              .fillMaxWidth()
+                              .clip(RoundedCornerShape(20.dp))
+                              .background(SurfaceWarm)
+                              .border(1.dp, Hairline, RoundedCornerShape(20.dp))
+                              .padding(18.dp),
+                          verticalArrangement = Arrangement.spacedBy(12.dp)
+                      ) {
+                          Row(verticalAlignment = Alignment.CenterVertically) {
+                              Icon(Icons.Rounded.Spa, contentDescription = null, tint = Sage, modifier = Modifier.size(18.dp))
+                              Spacer(Modifier.width(8.dp))
+                              Eyebrow("Today's pebbles", Modifier.weight(1f))
+                              Text("$pebbles / $DAILY_GOAL", fontSize = 13.sp, color = Ink, fontWeight = FontWeight.Medium)
+                          }
+                          Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                              repeat(DAILY_GOAL) { i ->
+                                  val filled by animateColorAsState(
+                                      targetValue = if (i < pebbles) Moss else SurfaceStone,
+                                      animationSpec = tween(350),
+                                      label = "pebble-$i"
+                                  )
+                                  Box(Modifier.size(20.dp).clip(CircleShape).background(filled))
+                              }
+                          }
+                          if (pebbles > DAILY_GOAL) {
+                              Text("Goal reached. ${pebbles - DAILY_GOAL} extra today.", fontSize = 12.sp, color = Muted)
+                          }
+                          TextButton(onClick = onReset, enabled = pebbles > 0) {
+                              Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(16.dp), tint = Muted)
+                              Spacer(Modifier.width(6.dp))
+                              Text("Reset today", fontSize = 12.sp, color = Muted)
+                          }
+                      }
+                  }
+              }
+
+              @Composable
+              private fun FocusScreen(onComplete: () -> Unit) {
+                  val haptic = LocalHapticFeedback.current
+                  val latestOnComplete by rememberUpdatedState(onComplete)
+                  var minutes by remember { mutableIntStateOf(3) }
+                  var remaining by remember { mutableIntStateOf(180) }
+                  var running by remember { mutableStateOf(false) }
+                  var finished by remember { mutableStateOf(false) }
+
+                  LaunchedEffect(running) {
+                      if (!running) return@LaunchedEffect
+                      while (remaining > 0) {
+                          delay(1000)
+                          remaining -= 1
+                      }
+                      running = false
+                      finished = true
+                      haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                      latestOnComplete()
+                  }
+
+                  val totalSeconds = minutes * 60f
+                  val progress by animateFloatAsState(
+                      targetValue = remaining / totalSeconds,
+                      animationSpec = tween(1000, easing = LinearEasing),
+                      label = "focus-ring"
+                  )
+                  val breathe by rememberInfiniteTransition(label = "breathe").animateFloat(
+                      initialValue = 0.82f,
+                      targetValue = 1f,
+                      animationSpec = infiniteRepeatable(
+                          animation = tween(4000, easing = FastOutSlowInEasing),
+                          repeatMode = RepeatMode.Reverse
+                      ),
+                      label = "breathe-scale"
+                  )
+                  val clock = String.format(Locale.US, "%02d:%02d", remaining / 60, remaining % 60)
+
+                  Column(
+                      Modifier
+                          .fillMaxSize()
+                          .verticalScroll(rememberScrollState())
+                          .padding(horizontal = 24.dp, vertical = 20.dp),
+                      horizontalAlignment = Alignment.CenterHorizontally,
+                      verticalArrangement = Arrangement.spacedBy(26.dp)
+                  ) {
+                      Box(Modifier.fillMaxWidth()) {
+                          ScreenTitle("Focus", "Breathe with the circle. A finished session adds a pebble.")
+                      }
+
+                      Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                          listOf(1, 3, 5).forEach { m ->
+                              val selected = m == minutes
+                              Box(
+                                  Modifier
+                                      .clip(RoundedCornerShape(50))
+                                      .background(if (selected) Moss else SurfaceStone)
+                                      .clickable(enabled = !running) {
+                                          minutes = m
+                                          remaining = m * 60
+                                          finished = false
+                                      }
+                                      .padding(horizontal = 18.dp, vertical = 9.dp)
+                              ) {
+                                  Text(
+                                      "$m min", fontSize = 13.sp,
+                                      color = if (selected) SurfaceWarm else Muted,
+                                      fontWeight = FontWeight.Medium
+                                  )
+                              }
+                          }
+                      }
+
+                      Box(contentAlignment = Alignment.Center) {
+                          ProgressRing(progress = progress, color = Moss, size = 240.dp)
+                          Box(
+                              Modifier
+                                  .size(160.dp)
+                                  .scale(if (running) breathe else 0.9f)
+                                  .clip(CircleShape)
+                                  .background(Sage.copy(alpha = 0.25f))
+                          )
+                          Text(clock, fontSize = 44.sp, fontFamily = FontFamily.Serif, color = Ink)
+                      }
+
+                      Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                          Button(
+                              onClick = {
+                                  if (remaining == 0) remaining = minutes * 60
+                                  finished = false
+                                  running = !running
+                              },
+                              shape = RoundedCornerShape(16.dp),
+                              colors = ButtonDefaults.buttonColors(containerColor = Moss, contentColor = SurfaceWarm),
+                              modifier = Modifier.weight(1f).height(52.dp)
+                          ) {
+                              Icon(
+                                  if (running) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                  contentDescription = null, modifier = Modifier.size(20.dp)
+                              )
+                              Spacer(Modifier.width(8.dp))
+                              Text(if (running) "Pause" else "Start", fontSize = 15.sp)
+                          }
+                          OutlinedButton(
+                              onClick = {
+                                  running = false
+                                  finished = false
+                                  remaining = minutes * 60
+                              },
+                              shape = RoundedCornerShape(16.dp),
+                              modifier = Modifier.height(52.dp)
+                          ) {
+                              Icon(Icons.Rounded.Refresh, contentDescription = "Reset", tint = Moss, modifier = Modifier.size(20.dp))
+                          }
+                      }
+
+                      AnimatedVisibility(visible = finished, enter = fadeIn(tween(300)), exit = fadeOut(tween(200))) {
+                          Row(verticalAlignment = Alignment.CenterVertically) {
+                              Icon(Icons.Rounded.Check, contentDescription = null, tint = Moss, modifier = Modifier.size(18.dp))
+                              Spacer(Modifier.width(8.dp))
+                              Text("Session complete. One pebble added.", fontSize = 14.sp, color = Ink)
+                          }
+                      }
+                  }
+              }
+
+              @Composable
+              private fun Detail(label: String, value: String) {
+                  Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                      Eyebrow(label)
+                      Text(value, fontSize = 14.sp, lineHeight = 20.sp, color = Ink)
+                  }
+              }
+
+              @Composable
+              private fun InfusionCard(inf: Infusion, expanded: Boolean, onToggle: () -> Unit) {
+                  val angle by animateFloatAsState(
+                      targetValue = if (expanded) 90f else 0f,
+                      animationSpec = tween(200),
+                      label = "chevron"
                   )
                   Column(
-                      Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                          .padding(horizontal = 24.dp).padding(top = 28.dp, bottom = 24.dp),
-                      horizontalAlignment = Alignment.CenterHorizontally
+                      Modifier
+                          .fillMaxWidth()
+                          .clip(RoundedCornerShape(20.dp))
+                          .background(SurfaceWarm)
+                          .border(1.dp, Hairline, RoundedCornerShape(20.dp))
+                          .clickable { onToggle() }
+                          .animateContentSize()
+                          .padding(18.dp)
                   ) {
-                      ScreenTitle("Make room for focus.", "One task. One quiet stretch. Then a mindful break.")
-                      Spacer(Modifier.height(26.dp))
-                      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                          listOf(15, 25, 45).forEach { value ->
-                              val selected = minutes == value
-                              Surface(
-                                  onClick = {
-                                      if (!running) {
-                                          minutes = value
-                                          remaining = value * 60
-                                          completed = false
-                                      }
-                                  },
-                                  shape = RoundedCornerShape(14.dp),
-                                  color = if (selected) Moss else SurfaceWarm,
-                                  border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, Hairline)
-                              ) {
-                                  Text("$value min", Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
-                                      color = if (selected) SurfaceWarm else Ink, fontSize = 12.sp,
-                                      fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
-                              }
+                      Row(verticalAlignment = Alignment.CenterVertically) {
+                          Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                              Text(inf.name, fontSize = 19.sp, fontFamily = FontFamily.Serif,
+                                  fontWeight = FontWeight.Medium, color = Ink)
+                              Text(inf.tamil, fontSize = 12.sp, color = Muted)
                           }
+                          Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Muted,
+                              modifier = Modifier.size(22.dp).rotate(angle))
                       }
-                      Spacer(Modifier.height(28.dp))
-                      Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
-                          colors = CardDefaults.cardColors(containerColor = SurfaceWarm)) {
-                          Column(Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 22.dp),
-                              horizontalAlignment = Alignment.CenterHorizontally) {
-                              Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
-                                  Canvas(Modifier.fillMaxSize()) {
-                                      val r = size.minDimension * 0.42f
-                                      drawArc(Sage.copy(alpha = 0.2f), -90f, 360f, false,
-                                          Offset(size.width / 2 - r, size.height / 2 - r), Size(r * 2, r * 2),
-                                          style = Stroke(width = 10.dp.toPx()))
-                                      drawArc(Moss, -90f, 360f * fraction, false,
-                                          Offset(size.width / 2 - r, size.height / 2 - r), Size(r * 2, r * 2),
-                                          style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round))
-                                  }
-                                  Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                      Text(String.format(Locale.US, "%02d:%02d", remaining / 60, remaining % 60),
-                                          fontSize = 39.sp, fontFamily = FontFamily.Serif, color = Ink)
-                                      Spacer(Modifier.height(5.dp))
-                                      Text(if (running) "IN YOUR FLOW" else if (completed) "SESSION COMPLETE" else "READY WHEN YOU ARE",
-                                          fontSize = 9.sp, letterSpacing = 1.5.sp, color = Muted)
-                                  }
-                              }
-                              Spacer(Modifier.height(20.dp))
-                              Text(if (completed) "Your focus session is complete." else "Let everything else wait.",
-                                  fontSize = 16.sp, fontFamily = FontFamily.Serif, color = Ink, textAlign = TextAlign.Center)
-                              Spacer(Modifier.height(6.dp))
-                              Text("Hydrate and rest your eyes when the timer ends.",
-                                  fontSize = 12.sp, color = Muted, textAlign = TextAlign.Center)
-                              Spacer(Modifier.height(22.dp))
-                              if (completed) {
-                                  Button(onClick = {
-                                      onSipCompleted()
-                                      completed = false
-                                      remaining = minutes * 60
-                                  }, modifier = Modifier.fillMaxWidth().height(50.dp),
-                                      shape = RoundedCornerShape(16.dp),
-                                      colors = ButtonDefaults.buttonColors(containerColor = Moss)) {
-                                      Icon(Icons.Rounded.Check, null, Modifier.size(18.dp))
-                                      Spacer(Modifier.width(8.dp))
-                                      Text("Complete mindful break")
-                                  }
-                              } else {
-                                  Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                      Button(onClick = { running = !running },
-                                          modifier = Modifier.weight(1f).height(50.dp),
-                                          shape = RoundedCornerShape(16.dp),
-                                          colors = ButtonDefaults.buttonColors(containerColor = Moss)) {
-                                          Icon(if (running) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null)
-                                          Spacer(Modifier.width(7.dp))
-                                          Text(if (running) "Pause" else "Start focus")
-                                      }
-                                      if (!running && remaining != minutes * 60) {
-                                          OutlinedButton(onClick = { remaining = minutes * 60; completed = false },
-                                              modifier = Modifier.height(50.dp), shape = RoundedCornerShape(16.dp)) {
-                                              Icon(Icons.Rounded.Refresh, null)
-                                          }
-                                      }
-                                  }
-                              }
-                          }
-                      }
-                      Spacer(Modifier.height(18.dp))
-                      Row(verticalAlignment = Alignment.CenterVertically,
-                          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                              .background(SurfaceStone).padding(16.dp)) {
-                          Icon(Icons.Rounded.SelfImprovement, null, tint = Moss, modifier = Modifier.size(25.dp))
-                          Spacer(Modifier.width(12.dp))
+                      Text(inf.note, fontSize = 13.sp, fontStyle = FontStyle.Italic, color = Muted,
+                          modifier = Modifier.padding(top = 8.dp))
+                      AnimatedVisibility(visible = expanded) {
                           Column {
-                              Text("A gentler kind of productivity", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-                              Text("Take one thing at a time. The pause is part of the work.",
-                                  fontSize = 11.sp, lineHeight = 16.sp, color = Muted)
+                              Detail("Ingredients", inf.ingredients)
+                              Detail("Method", inf.method)
+                              Detail("Best time", inf.bestTime)
+                              Detail("Prep time", "${inf.minutes} min")
                           }
                       }
                   }
@@ -720,105 +769,30 @@ jobs:
 
               @Composable
               private fun InfusionsScreen() {
-                  var active by remember { mutableStateOf<String?>(null) }
-                  var seconds by remember { mutableIntStateOf(0) }
-                  var expanded by remember { mutableStateOf<String?>(null) }
-                  val context = LocalContext.current
-                  LaunchedEffect(seconds) {
-                      if (seconds > 0) {
-                          delay(1000)
-                          seconds -= 1
-                          if (seconds == 0) {
-                              val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-                              try {
-                                  if (Build.VERSION.SDK_INT >= 26) vibrator?.vibrate(
-                                      VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
-                                  else {
-                                      @Suppress("DEPRECATION")
-                                      vibrator?.vibrate(100)
-                                  }
-                              } catch (_: Exception) {}
+                  var expandedName by remember { mutableStateOf<String?>(null) }
+                  LazyColumn(
+                      Modifier.fillMaxSize(),
+                      contentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp),
+                      verticalArrangement = Arrangement.spacedBy(14.dp)
+                  ) {
+                      item {
+                          Box(Modifier.padding(bottom = 8.dp)) {
+                              ScreenTitle("Infusions", "Traditional Tamil home waters. Tap a card for details.")
                           }
                       }
-                  }
-                  Column(Modifier.fillMaxSize().padding(horizontal = 22.dp).padding(top = 26.dp)) {
-                      ScreenTitle("The infusion shelf.", "Simple traditional recipes, made at your own pace.")
-                      Spacer(Modifier.height(16.dp))
-                      AnimatedVisibility(seconds > 0, enter = fadeIn(tween(180)), exit = fadeOut(tween(150))) {
-                          Card(Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                              shape = RoundedCornerShape(18.dp),
-                              colors = CardDefaults.cardColors(containerColor = Moss)) {
-                              Row(Modifier.fillMaxWidth().padding(15.dp),
-                                  verticalAlignment = Alignment.CenterVertically) {
-                                  Column(Modifier.weight(1f)) {
-                                      Text("Steeping · $active", color = SurfaceWarm, fontSize = 13.sp,
-                                          fontWeight = FontWeight.SemiBold)
-                                      Text(String.format(Locale.US, "Ready in %02d:%02d", seconds / 60, seconds % 60),
-                                          color = SurfaceWarm.copy(alpha = 0.8f), fontSize = 12.sp)
-                                  }
-                                  TextButton(onClick = { seconds = 0 }) { Text("Dismiss", color = SurfaceWarm) }
-                              }
-                          }
+                      items(infusions) { inf ->
+                          InfusionCard(
+                              inf = inf,
+                              expanded = expandedName == inf.name,
+                              onToggle = { expandedName = if (expandedName == inf.name) null else inf.name }
+                          )
                       }
-                      LazyColumn(verticalArrangement = Arrangement.spacedBy(11.dp),
-                          contentPadding = PaddingValues(bottom = 24.dp)) {
-                          items(infusions, key = { it.name }) { recipe ->
-                              val isExpanded = expanded == recipe.name
-                              Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
-                                  colors = CardDefaults.cardColors(containerColor = SurfaceWarm)) {
-                                  Column(Modifier.animateContentSize(tween(260, easing = FastOutSlowInEasing))
-                                      .clickable { expanded = if (isExpanded) null else recipe.name }
-                                      .padding(17.dp)) {
-                                      Row(verticalAlignment = Alignment.CenterVertically) {
-                                          Box(Modifier.size(43.dp).clip(RoundedCornerShape(14.dp))
-                                              .background(SurfaceStone), contentAlignment = Alignment.Center) {
-                                              Icon(Icons.Rounded.Spa, null, tint = Moss, modifier = Modifier.size(22.dp))
-                                          }
-                                          Spacer(Modifier.width(12.dp))
-                                          Column(Modifier.weight(1f)) {
-                                              Text(recipe.name, fontSize = 17.sp, fontFamily = FontFamily.Serif,
-                                                  fontWeight = FontWeight.Medium, color = Ink)
-                                              Text(recipe.tamil, fontSize = 11.sp, color = Clay)
-                                          }
-                                          Icon(Icons.Rounded.ChevronRight, null, tint = Muted,
-                                              modifier = Modifier.size(19.dp).then(if (isExpanded) Modifier.scale(-1f, 1f) else Modifier))
-                                      }
-                                      Spacer(Modifier.height(10.dp))
-                                      Text(recipe.note, fontSize = 12.sp, lineHeight = 17.sp, color = Muted)
-                                      AnimatedVisibility(isExpanded, enter = fadeIn(tween(180))) {
-                                          Column {
-                                              Spacer(Modifier.height(14.dp))
-                                              HorizontalDivider(color = Hairline)
-                                              Spacer(Modifier.height(12.dp))
-                                              Eyebrow("INGREDIENTS")
-                                              Spacer(Modifier.height(4.dp))
-                                              Text(recipe.ingredients, fontSize = 12.sp, lineHeight = 18.sp, color = Ink)
-                                              Spacer(Modifier.height(12.dp))
-                                              Eyebrow("METHOD")
-                                              Spacer(Modifier.height(4.dp))
-                                              Text(recipe.method, fontSize = 12.sp, lineHeight = 18.sp, color = Ink)
-                                              Spacer(Modifier.height(10.dp))
-                                              Text("Best time · ${recipe.bestTime}", fontSize = 11.sp,
-                                                  fontStyle = FontStyle.Italic, color = Moss)
-                                              Spacer(Modifier.height(12.dp))
-                                              Button(onClick = {
-                                                  active = recipe.name
-                                                  seconds = recipe.minutes * 60
-                                              }, modifier = Modifier.fillMaxWidth().height(46.dp),
-                                                  shape = RoundedCornerShape(14.dp),
-                                                  colors = ButtonDefaults.buttonColors(containerColor = Moss)) {
-                                                  Text("Start ${recipe.minutes}-minute timer")
-                                              }
-                                          }
-                                      }
-                                      if (!isExpanded) {
-                                          Spacer(Modifier.height(9.dp))
-                                          Text("VIEW RECIPE  ↗", fontSize = 9.sp, letterSpacing = 1.5.sp,
-                                              fontWeight = FontWeight.SemiBold, color = Moss)
-                                      }
-                                  }
-                              }
-                          }
+                      item {
+                          Text(
+                              "Traditional home preparations, not medical advice. Check with a doctor if you are pregnant, on medication, or have a health condition.",
+                              fontSize = 11.sp, lineHeight = 16.sp, color = Muted, textAlign = TextAlign.Center,
+                              modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp)
+                          )
                       }
                   }
               }
@@ -826,30 +800,23 @@ jobs:
           PYEOF
 
       - name: Build debug APK
-        shell: bash
-        run: |
-          export JAVA_HOME="$JAVA_HOME_17_X64"
-          export PATH="$JAVA_HOME/bin:$PATH"
-          gradle --version
-          gradle --no-daemon --stacktrace assembleDebug
-          mkdir -p artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk artifacts/Neer-Zen-v1.3.apk
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk "Neer-Zen-v1.3-build${{ github.run_number }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Neer-Zen-APK
-          path: artifacts/Neer-Zen-v1.3.apk
+          path: Neer-Zen-v1.3-build${{ github.run_number }}.apk
           if-no-files-found: error
-          retention-days: 30
 
-      - name: Publish GitHub Release
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          TAG="v1.3.${{ github.run_number }}"
-          gh release create "$TAG" artifacts/Neer-Zen-v1.3.apk \
-            --title "Neer Zen v1.3 · Build #${{ github.run_number }}" \
-            --notes "Neer Zen UI refinement: warmer editorial hierarchy, consistent spacing and surfaces, animated screen transitions, refined sip timer, animated focus progress, and smoother recipe expansion."
+      - name: Publish GitHub Release (download APK directly on mobile)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: Neer Zen v1.3 (build ${{ github.run_number }})
+          files: Neer-Zen-v1.3-build${{ github.run_number }}.apk
+          make_latest: true
