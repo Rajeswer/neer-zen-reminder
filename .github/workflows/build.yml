@@ -10,11 +10,15 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Clone Repository
+        run: |
+          git init .
+          git remote add origin https://github.com/${{ github.repository }}.git
+          git fetch --depth=1 origin ${{ github.sha }}
+          git checkout FETCH_HEAD
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -27,7 +31,7 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Scaffold Neer Android Project (Mobile-Safe Python Writer)
+      - name: Scaffold Neer Android Project (Impeccable UI/UX Pro Max Architecture)
         run: |
           python3 - << 'PYEOF'
           import os, textwrap
@@ -84,8 +88,8 @@ jobs:
                       applicationId = "com.zen.neer"
                       minSdk = 26
                       targetSdk = 34
-                      versionCode = 2
-                      versionName = "1.1"
+                      versionCode = 3
+                      versionName = "1.2"
                   }
 
                   buildTypes {
@@ -134,9 +138,7 @@ jobs:
                   android:height="108dp"
                   android:viewportWidth="108"
                   android:viewportHeight="108">
-                  <path
-                      android:fillColor="#F5F2EB"
-                      android:pathData="M0,0h108v108h-108z" />
+                  <path android:fillColor="#F5F2EB" android:pathData="M0,0h108v108h-108z" />
               </vector>
           """)
 
@@ -147,19 +149,11 @@ jobs:
                   android:height="108dp"
                   android:viewportWidth="108"
                   android:viewportHeight="108">
-                  <path
-                      android:strokeColor="#3A4F41"
-                      android:strokeWidth="5.5"
-                      android:strokeLineCap="round"
+                  <path android:strokeColor="#3A4F41" android:strokeWidth="5.5" android:strokeLineCap="round"
                       android:pathData="M78,36 C86,48 84,66 72,76 C58,87 38,84 28,70 C19,56 23,36 38,27 C50,20 65,22 73,29" />
-                  <path
-                      android:fillColor="#B5654D"
+                  <path android:fillColor="#B5654D"
                       android:pathData="M79,27 C79,29.5 77,31.5 74.5,31.5 C72,31.5 70,29.5 70,27 C70,24 74.5,19 74.5,19 C74.5,19 79,24 79,27 Z" />
-                  <path
-                      android:strokeColor="#232924"
-                      android:strokeWidth="4.2"
-                      android:strokeLineCap="round"
-                      android:strokeLineJoin="round"
+                  <path android:strokeColor="#232924" android:strokeWidth="4.2" android:strokeLineCap="round" android:strokeLineJoin="round"
                       android:pathData="M39,46 L39,66 M39,46 L55,46 L55,64 C55,68 62,68 64,62 M39,46 C37,36 48,30 58,35 C65,38 64,45 56,46" />
               </vector>
           """)
@@ -237,6 +231,10 @@ jobs:
               import androidx.compose.ui.graphics.StrokeCap
               import androidx.compose.ui.graphics.drawscope.Stroke
               import androidx.compose.ui.platform.LocalContext
+              import androidx.compose.ui.semantics.Role
+              import androidx.compose.ui.semantics.contentDescription
+              import androidx.compose.ui.semantics.role
+              import androidx.compose.ui.semantics.semantics
               import androidx.compose.ui.text.font.FontFamily
               import androidx.compose.ui.text.font.FontStyle
               import androidx.compose.ui.text.font.FontWeight
@@ -246,13 +244,14 @@ jobs:
               import kotlinx.coroutines.delay
               import kotlin.math.sin
 
-              val PaperBg = Color(0xFFF5F2EB)
-              val ClaySurface = Color(0xFFEBE5D8)
-              val BrushInk = Color(0xFF232924)
-              val ZenMoss = Color(0xFF3A4F41)
-              val MistSage = Color(0xFF8A9B8E)
-              val Terracotta = Color(0xFFB5654D)
-              val MutedInk = Color(0xFF636B64)
+              // Wabi-Sabi Impeccable Color Theory & Accessible Contrast Ratios
+              val PaperBg = Color(0xFFF5F2EB)        // Handmade unbleached Washi paper
+              val ClaySurface = Color(0xFFEBE5D8)    // Soft earthen stone surface
+              val BrushInk = Color(0xFF232924)       // Deep Sumi ink (AAA contrast on paper)
+              val ZenMoss = Color(0xFF3A4F41)        // Forest leaf & active ink accent
+              val MistSage = Color(0xFF8A9B8E)       // Muted secondary stroke
+              val Terracotta = Color(0xFFB5654D)     // Hanko seal & alert accent
+              val MutedInk = Color(0xFF5A635E)       // Accessible secondary body text
 
               enum class SipState { IDLE, DRINKING_12S, STILLNESS_SEAL }
 
@@ -271,18 +270,18 @@ jobs:
                   HerbalWater(
                       name = "Jeera Water",
                       tamilName = "சீரகத் தண்ணீர் • Seeraga Neer",
-                      tagline = "Digestive Fire (Agni) & Mental Clarity",
-                      mindBodyBenefit = "Clears gut sluggishness that triggers afternoon brain fog. Warm cumin infusion relaxes the enteric nervous system and brings a light, grounded stillness.",
+                      tagline = "Digestive Agni & Mental Clarity",
+                      mindBodyBenefit = "Clears gut sluggishness that triggers afternoon brain fog. Warm cumin infusion relaxes the nervous system and grounds scattered thoughts.",
                       ingredients = "1 tsp whole Cumin seeds (Seeragam) + 500ml water",
-                      method = "Simmer water with cumin seeds on low flame for 5 minutes until golden. Cover and rest for 5 minutes. Sip warm.",
+                      method = "Simmer water with cumin seeds on low flame for 5 minutes until golden. Cover, let steep for 5 minutes, and sip warm.",
                       bestTime = "Warm in the morning or 20 mins after lunch",
                       steepMinutes = 5
                   ),
                   HerbalWater(
                       name = "Vendhaya Water",
                       tamilName = "வெந்தயத் தண்ணீர் • Vendhaya Neer",
-                      tagline = "Deep Body-Heat (Pitta) Cooling & Mood Balance",
-                      mindBodyBenefit = "Excess internal heat (Pitta) manifests as impatience, eye strain, and restlessness. Soaked fenugreek cools the digestive tract and steadies morning energy.",
+                      tagline = "Deep Body-Heat (Pitta) Cooling & Glycemic Calm",
+                      mindBodyBenefit = "Excess internal heat causes irritability and eye strain. Soaked fenugreek cools the digestive tract and steadies morning energy.",
                       ingredients = "1 tsp Fenugreek seeds (Vendhayam) + 1 glass room-temp water",
                       method = "Soak fenugreek seeds in a clay or steel tumbler overnight. Drink the cool golden water slowly on an empty stomach.",
                       bestTime = "First thing upon waking",
@@ -294,7 +293,7 @@ jobs:
                       tagline = "Vata Grounding & Breath Expansion",
                       mindBodyBenefit = "Trapped air (Vata) causes both bloating and racing thoughts. Warm Omam water releases abdominal tension and deepens shallow breathing.",
                       ingredients = "1/2 tsp lightly roasted Ajwain (Omam) + 400ml water",
-                      method = "Dry roast omam for 30 seconds until fragrant, pour water, and boil for 4 minutes. Strain and sip warm.",
+                      method = "Dry roast omam for 30 seconds until fragrant, add water, and boil for 4 minutes. Strain and sip warm.",
                       bestTime = "Mid-afternoon or after a heavy meal",
                       steepMinutes = 4
                   ),
@@ -302,9 +301,9 @@ jobs:
                       name = "Sombu (Fennel) Water",
                       tamilName = "சோம்புத் தண்ணீர் • Sombu Neer",
                       tagline = "Evening Nervous System Unwind",
-                      mindBodyBenefit = "Naturally sweet and Sattvic. Fennel releases tight jaw and shoulder tension accumulated from long screen hours.",
+                      mindBodyBenefit = "Naturally sweet and Sattvic. Fennel releases tight jaw and shoulder tension accumulated from screen hours.",
                       ingredients = "1 tsp Fennel seeds (Sombu) + 500ml hot water",
-                      method = "Steep fennel seeds in hot boiled water with a lid on for 7 minutes. Sip slowly at room temperature as your workday ends.",
+                      method = "Steep fennel seeds in hot boiled water with a lid on for 7 minutes. Sip slowly as your workday winds down.",
                       bestTime = "Late afternoon transition (5:30 PM)",
                       steepMinutes = 7
                   ),
@@ -312,9 +311,9 @@ jobs:
                       name = "Vettiver Clay Pot Water",
                       tamilName = "வெட்டிவேர் தண்ணீர் • Vettiver Neer",
                       tagline = "Earthy Anxiety Relief & Sensory Quiet",
-                      mindBodyBenefit = "The petrichor aroma of Vettiver roots directly calms the limbic system, washing away urban noise and screen fatigue.",
-                      ingredients = "A small washed bundle of Vettiver roots + 1 Litre drinking water",
-                      method = "Place clean Vettiver roots in an earthen pot or steel jug for 2+ hours. Remains naturally cool and aromatic.",
+                      mindBodyBenefit = "The petrichor aroma of Vettiver roots calms the limbic system, washing away urban noise and screen fatigue.",
+                      ingredients = "A small washed bundle of Vettiver roots + 1 Litre water",
+                      method = "Place clean Vettiver roots in a clay pot or steel jug for 2+ hours. Naturally cool and aromatic without refrigeration.",
                       bestTime = "Sip through warm afternoons",
                       steepMinutes = 15
                   )
@@ -355,12 +354,16 @@ jobs:
                   Scaffold(
                       containerColor = PaperBg,
                       bottomBar = {
-                          NavigationBar(containerColor = ClaySurface, tonalElevation = 0.dp) {
+                          NavigationBar(
+                              containerColor = ClaySurface,
+                              tonalElevation = 3.dp,
+                              modifier = androidx.compose.ui.Modifier.height(72.dp)
+                          ) {
                               NavigationBarItem(
                                   selected = selectedTab == 0,
                                   onClick = { selectedTab = 0 },
-                                  icon = { Icon(Icons.Default.WaterDrop, contentDescription = null) },
-                                  label = { Text("நீர் • Sip", fontFamily = FontFamily.Serif) },
+                                  icon = { Icon(Icons.Default.WaterDrop, contentDescription = null, modifier = Modifier.size(24.dp)) },
+                                  label = { Text("நீர் • Sip", fontFamily = FontFamily.Serif, fontSize = 12.sp) },
                                   colors = NavigationBarItemDefaults.colors(
                                       selectedIconColor = ZenMoss,
                                       selectedTextColor = ZenMoss,
@@ -370,8 +373,8 @@ jobs:
                               NavigationBarItem(
                                   selected = selectedTab == 1,
                                   onClick = { selectedTab = 1 },
-                                  icon = { Icon(Icons.Default.SelfImprovement, contentDescription = null) },
-                                  label = { Text("Focus Pot", fontFamily = FontFamily.Serif) },
+                                  icon = { Icon(Icons.Default.SelfImprovement, contentDescription = null, modifier = Modifier.size(24.dp)) },
+                                  label = { Text("Focus Pot", fontFamily = FontFamily.Serif, fontSize = 12.sp) },
                                   colors = NavigationBarItemDefaults.colors(
                                       selectedIconColor = ZenMoss,
                                       selectedTextColor = ZenMoss,
@@ -381,8 +384,8 @@ jobs:
                               NavigationBarItem(
                                   selected = selectedTab == 2,
                                   onClick = { selectedTab = 2 },
-                                  icon = { Icon(Icons.Default.MenuBook, contentDescription = null) },
-                                  label = { Text("Infusions", fontFamily = FontFamily.Serif) },
+                                  icon = { Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(24.dp)) },
+                                  label = { Text("Infusions", fontFamily = FontFamily.Serif, fontSize = 12.sp) },
                                   colors = NavigationBarItemDefaults.colors(
                                       selectedIconColor = ZenMoss,
                                       selectedTextColor = ZenMoss,
@@ -392,7 +395,11 @@ jobs:
                           }
                       }
                   ) { padding ->
-                      Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                      Box(
+                          modifier = Modifier
+                              .fillMaxSize()
+                              .padding(padding)
+                      ) {
                           when (selectedTab) {
                               0 -> NeerBrushSipScreen(
                                   pebblesCount = pebblesToday,
@@ -409,14 +416,21 @@ jobs:
                   }
               }
 
+              // =========================================================================
+              // SCREEN 1: NEER SUMI-E 12s BRUSH TIMER & GARDEN CANVAS (A11y & Grid Aligned)
+              // =========================================================================
               @Composable
-              fun NeerBrushSipScreen(pebblesCount: Int, onCompleteSip: () -> Unit, onResetDay: () -> Unit) {
+              fun NeerBrushSipScreen(
+                  pebblesCount: Int,
+                  onCompleteSip: () -> Unit,
+                  onResetDay: () -> Unit
+              ) {
                   val context = LocalContext.current
                   var sipState by remember { mutableStateOf(SipState.IDLE) }
                   var progress12s by remember { mutableStateOf(0f) }
                   var sealRippleProgress by remember { mutableStateOf(0f) }
-                  var phaseText by remember { mutableStateOf("Hold your glass. Tap once below, then drink slowly.") }
-                  var subPhaseText by remember { mutableStateOf("No holding the screen required.") }
+                  var phaseText by remember { mutableStateOf("Hold your glass. Tap canvas to begin sip.") }
+                  var subPhaseText by remember { mutableStateOf("12 seconds of unhurried breath and hydration.") }
 
                   val reflections = remember {
                       listOf(
@@ -433,8 +447,8 @@ jobs:
                           SipState.IDLE -> {
                               progress12s = 0f
                               sealRippleProgress = 0f
-                              phaseText = "Hold your glass. Tap once below, then drink slowly."
-                              subPhaseText = "12 seconds of unhurried hydration"
+                              phaseText = "Hold your glass. Tap canvas to begin sip."
+                              subPhaseText = "12 seconds of unhurried breath and hydration."
                           }
                           SipState.DRINKING_12S -> {
                               triggerGentleHaptic(context, 35)
@@ -465,7 +479,7 @@ jobs:
                           }
                           SipState.STILLNESS_SEAL -> {
                               phaseText = "Set your glass down. Stay still for one breath..."
-                              subPhaseText = "Let the ripple settle before returning to your work"
+                              subPhaseText = "Let the ripple settle before returning to your work."
                               val rippleSteps = 35
                               for (r in 1..rippleSteps) {
                                   sealRippleProgress = r / rippleSteps.toFloat()
@@ -479,26 +493,49 @@ jobs:
                   }
 
                   Column(
-                      modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp),
+                      modifier = Modifier
+                          .fillMaxSize()
+                          .padding(horizontal = 24.dp, vertical = 16.dp),
                       horizontalAlignment = Alignment.CenterHorizontally,
                       verticalArrangement = Arrangement.SpaceBetween
                   ) {
+                      // Top Header (Typography Scaling & Hierarchy)
                       Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                          Text("நீர் • NEER", fontSize = 15.sp, letterSpacing = 4.sp, color = ZenMoss, fontWeight = FontWeight.Bold)
+                          Text(
+                              text = "நீர் • NEER",
+                              fontSize = 14.sp,
+                              letterSpacing = 4.sp,
+                              color = ZenMoss,
+                              fontWeight = FontWeight.Bold
+                          )
                           Spacer(modifier = Modifier.height(4.dp))
-                          Text("Mindful Water & Breath Sanctuary", fontSize = 13.sp, fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, color = MutedInk)
+                          Text(
+                              text = "Sum-e Canvas Sanctuary",
+                              fontSize = 13.sp,
+                              fontFamily = FontFamily.Serif,
+                              fontStyle = FontStyle.Italic,
+                              color = MutedInk
+                          )
                       }
 
+                      // Centerpiece: Pure Sumi-e Enso Brush Canvas (Min 48dp Touch Target & Semantics)
                       Box(
                           contentAlignment = Alignment.Center,
-                          modifier = Modifier.size(280.dp).clickable(enabled = sipState == SipState.IDLE) {
-                              sipState = SipState.DRINKING_12S
-                          }
+                          modifier = Modifier
+                              .size(280.dp)
+                              .semantics {
+                                  role = Role.Button
+                                  contentDescription = "Tap to begin 12 second mindful sip ritual"
+                              }
+                              .clickable(enabled = sipState == SipState.IDLE) {
+                                  sipState = SipState.DRINKING_12S
+                              }
                       ) {
                           Canvas(modifier = Modifier.fillMaxSize()) {
                               val center = Offset(size.width / 2, size.height / 2)
-                              val radius = size.minDimension / 2.5f
+                              val radius = size.minDimension / 2.6f
 
+                              // Dry-brush background track
                               drawArc(
                                   color = MistSage.copy(alpha = 0.28f),
                                   startAngle = -90f,
@@ -506,25 +543,16 @@ jobs:
                                   useCenter = false,
                                   topLeft = Offset(center.x - radius, center.y - radius),
                                   size = Size(radius * 2, radius * 2),
-                                  style = Stroke(width = 22f, cap = StrokeCap.Round)
+                                  style = Stroke(width = 20f, cap = StrokeCap.Round)
                               )
 
                               val activeSweep = when (sipState) {
-                                  SipState.IDLE -> 335f * 0.12f
+                                  SipState.IDLE -> 335f * 0.15f
                                   SipState.DRINKING_12S -> 335f * progress12s
                                   SipState.STILLNESS_SEAL -> 335f
                               }
 
-                              drawArc(
-                                  color = ZenMoss.copy(alpha = 0.35f),
-                                  startAngle = -90f,
-                                  sweepAngle = activeSweep,
-                                  useCenter = false,
-                                  topLeft = Offset(center.x - radius - 3f, center.y - radius - 3f),
-                                  size = Size((radius + 3f) * 2, (radius + 3f) * 2),
-                                  style = Stroke(width = 28f, cap = StrokeCap.Round)
-                              )
-
+                              // Wet Sumi Ink Brush Stroke
                               drawArc(
                                   color = ZenMoss,
                                   startAngle = -90f,
@@ -532,74 +560,164 @@ jobs:
                                   useCenter = false,
                                   topLeft = Offset(center.x - radius, center.y - radius),
                                   size = Size(radius * 2, radius * 2),
-                                  style = Stroke(width = 18f, cap = StrokeCap.Round)
+                                  style = Stroke(width = 16f, cap = StrokeCap.Round)
                               )
 
+                              // Stillness Ripple Seal at end of ritual
                               if (sipState == SipState.STILLNESS_SEAL) {
-                                  val rippleRadius1 = radius * (0.3f + sealRippleProgress * 1.05f)
-                                  val rippleRadius2 = radius * (0.15f + sealRippleProgress * 0.75f)
+                                  val rippleRadius1 = radius * (0.3f + sealRippleProgress * 0.95f)
                                   val alpha = (1f - sealRippleProgress).coerceIn(0f, 1f)
-
-                                  drawCircle(color = Terracotta.copy(alpha = alpha * 0.55f), radius = rippleRadius1, center = center, style = Stroke(width = 4f))
-                                  drawCircle(color = ZenMoss.copy(alpha = alpha * 0.7f), radius = rippleRadius2, center = center, style = Stroke(width = 6f))
+                                  drawCircle(
+                                      color = Terracotta.copy(alpha = alpha * 0.6f),
+                                      radius = rippleRadius1,
+                                      center = center,
+                                      style = Stroke(width = 3.5f)
+                                  )
                               }
                           }
 
                           Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                              Text(
-                                  text = "நீ",
-                                  fontSize = if (sipState == SipState.STILLNESS_SEAL) 68.sp else 62.sp,
-                                  fontFamily = FontFamily.Serif,
-                                  fontWeight = FontWeight.Bold,
-                                  color = if (sipState == SipState.STILLNESS_SEAL) Terracotta else BrushInk
-                              )
-                              Spacer(modifier = Modifier.height(6.dp))
                               when (sipState) {
-                                  SipState.IDLE -> Text("TAP TO SIP", fontSize = 13.sp, letterSpacing = 2.5.sp, fontWeight = FontWeight.SemiBold, color = Terracotta)
+                                  SipState.IDLE -> {
+                                      Text(
+                                          text = "TAP CANVAS",
+                                          fontSize = 12.sp,
+                                          letterSpacing = 3.sp,
+                                          fontWeight = FontWeight.Bold,
+                                          color = Terracotta
+                                      )
+                                      Spacer(modifier = Modifier.height(4.dp))
+                                      Text(
+                                          text = "To Begin Sip",
+                                          fontSize = 13.sp,
+                                          fontFamily = FontFamily.Serif,
+                                          color = BrushInk
+                                      )
+                                  }
                                   SipState.DRINKING_12S -> {
                                       val secsLeft = 12 - (progress12s * 12).toInt()
-                                      Text("${secsLeft}s • Sip Slowly", fontSize = 14.sp, fontFamily = FontFamily.Serif, color = ZenMoss, fontWeight = FontWeight.Medium)
+                                      Text(
+                                          text = "${secsLeft}s",
+                                          fontSize = 32.sp,
+                                          fontFamily = FontFamily.Serif,
+                                          fontWeight = FontWeight.Bold,
+                                          color = ZenMoss
+                                      )
+                                      Text(
+                                          text = "Sip Slowly",
+                                          fontSize = 12.sp,
+                                          color = MutedInk
+                                      )
                                   }
-                                  SipState.STILLNESS_SEAL -> Text("Stillness...", fontSize = 14.sp, fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, color = Terracotta)
+                                  SipState.STILLNESS_SEAL -> {
+                                      Text(
+                                          text = "Stillness",
+                                          fontSize = 18.sp,
+                                          fontFamily = FontFamily.Serif,
+                                          fontStyle = FontStyle.Italic,
+                                          color = Terracotta
+                                      )
+                                  }
                               }
                           }
                       }
 
-                      Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                          Text(phaseText, fontSize = 16.sp, fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, color = BrushInk, textAlign = TextAlign.Center)
+                      // Bottom Action & Zen Garden Reflection Card (8dp Grid Spacing)
+                      Column(
+                          horizontalAlignment = Alignment.CenterHorizontally,
+                          modifier = Modifier.fillMaxWidth()
+                      ) {
+                          Text(
+                              text = phaseText,
+                              fontSize = 15.sp,
+                              fontFamily = FontFamily.Serif,
+                              fontWeight = FontWeight.SemiBold,
+                              color = BrushInk,
+                              textAlign = TextAlign.Center
+                          )
                           Spacer(modifier = Modifier.height(4.dp))
-                          Text(subPhaseText, fontSize = 13.sp, color = MutedInk, textAlign = TextAlign.Center)
-                          Spacer(modifier = Modifier.height(14.dp))
+                          Text(
+                              text = subPhaseText,
+                              fontSize = 12.sp,
+                              color = MutedInk,
+                              textAlign = TextAlign.Center
+                          )
+
+                          Spacer(modifier = Modifier.height(12.dp))
 
                           if (sipState == SipState.IDLE) {
                               Button(
                                   onClick = { sipState = SipState.DRINKING_12S },
                                   colors = ButtonDefaults.buttonColors(containerColor = ZenMoss),
-                                  shape = RoundedCornerShape(28.dp),
-                                  modifier = Modifier.fillMaxWidth(0.75f).height(50.dp)
+                                  shape = RoundedCornerShape(24.dp),
+                                  modifier = Modifier
+                                      .fillMaxWidth(0.7f)
+                                      .height(48.dp) // Accessible Min Height
                               ) {
-                                  Text("Begin 12s Mindful Sip", fontFamily = FontFamily.Serif, fontSize = 16.sp, color = PaperBg)
+                                  Text(
+                                      text = "Start 12s Mindful Sip",
+                                      fontFamily = FontFamily.Serif,
+                                      fontSize = 15.sp,
+                                      color = PaperBg
+                                  )
                               }
                           } else if (sipState == SipState.DRINKING_12S) {
-                              TextButton(onClick = { sipState = SipState.IDLE }) {
+                              TextButton(
+                                  onClick = { sipState = SipState.IDLE },
+                                  modifier = Modifier.height(48.dp)
+                              ) {
                                   Text("Cancel", color = MutedInk, fontSize = 13.sp)
                               }
                           } else {
-                              Spacer(modifier = Modifier.height(50.dp))
+                              Spacer(modifier = Modifier.height(48.dp))
                           }
 
-                          Spacer(modifier = Modifier.height(14.dp))
+                          Spacer(modifier = Modifier.height(12.dp))
 
-                          Card(colors = CardDefaults.cardColors(containerColor = ClaySurface), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                              Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                  Text("“${reflections[reflectionIndex]}”", fontSize = 13.sp, fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, textAlign = TextAlign.Center, color = BrushInk)
-                                  Spacer(modifier = Modifier.height(10.dp))
-                                  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                                      Text("River Stones Gathered Today: ", fontSize = 12.sp, color = MutedInk)
-                                      Text("$pebblesCount", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ZenMoss)
+                          Card(
+                              colors = CardDefaults.cardColors(containerColor = ClaySurface),
+                              shape = RoundedCornerShape(16.dp),
+                              modifier = Modifier.fillMaxWidth()
+                          ) {
+                              Column(
+                                  modifier = Modifier.padding(14.dp),
+                                  horizontalAlignment = Alignment.CenterHorizontally
+                              ) {
+                                  Text(
+                                      text = "“${reflections[reflectionIndex]}”",
+                                      fontSize = 12.sp,
+                                      fontFamily = FontFamily.Serif,
+                                      fontStyle = FontStyle.Italic,
+                                      textAlign = TextAlign.Center,
+                                      color = BrushInk
+                                  )
+                                  Spacer(modifier = Modifier.height(8.dp))
+                                  Row(
+                                      verticalAlignment = Alignment.CenterVertically,
+                                      horizontalArrangement = Arrangement.Center,
+                                      modifier = Modifier.fillMaxWidth()
+                                  ) {
+                                      Text(
+                                          text = "River Stones Today: ",
+                                          fontSize = 11.sp,
+                                          color = MutedInk
+                                      )
+                                      Text(
+                                          text = "$pebblesCount",
+                                          fontSize = 13.sp,
+                                          fontWeight = FontWeight.Bold,
+                                          color = ZenMoss
+                                      )
                                       if (pebblesCount > 0) {
-                                          Spacer(modifier = Modifier.width(10.dp))
-                                          Text("Clear", fontSize = 11.sp, color = Terracotta, modifier = Modifier.clickable { onResetDay() })
+                                          Spacer(modifier = Modifier.width(8.dp))
+                                          Text(
+                                              text = "Clear",
+                                              fontSize = 11.sp,
+                                              color = Terracotta,
+                                              modifier = Modifier
+                                                  .clickable { onResetDay() }
+                                                  .semantics { role = Role.Button }
+                                          )
                                       }
                                   }
                               }
@@ -608,6 +726,9 @@ jobs:
                   }
               }
 
+              // =========================================================================
+              // SCREEN 2: FOCUS VESSEL (Bamboo Rocker / Shishi-odoshi)
+              // =========================================================================
               @Composable
               fun FocusVesselScreen(onFocusSipCompleted: () -> Unit) {
                   val context = LocalContext.current
@@ -632,23 +753,30 @@ jobs:
                   val totalSeconds = selectedMinutes * 60
                   val fillFraction = if (totalSeconds > 0) ((totalSeconds - remainingSeconds).toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f) else 0f
 
-                  val infiniteTransition = rememberInfiniteTransition(label = "wave")
-                  val wavePhase by infiniteTransition.animateFloat(
-                      initialValue = 0f,
-                      targetValue = 6.28f,
-                      animationSpec = infiniteRepeatable(animation = tween(3200, easing = LinearEasing), repeatMode = RepeatMode.Restart),
-                      label = "wavePhase"
-                  )
-
                   Column(
-                      modifier = Modifier.fillMaxSize().padding(24.dp),
+                      modifier = Modifier
+                          .fillMaxSize()
+                          .padding(24.dp),
                       horizontalAlignment = Alignment.CenterHorizontally,
                       verticalArrangement = Arrangement.SpaceBetween
                   ) {
                       Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                          Text("MANPANAI • CLAY FOCUS VESSEL", fontSize = 13.sp, letterSpacing = 3.sp, color = MutedInk, fontWeight = FontWeight.Medium)
-                          Spacer(modifier = Modifier.height(6.dp))
-                          Text("No nagging hourly pings. Hydrate gently when your focus block ends.", fontSize = 14.sp, fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, color = MutedInk, textAlign = TextAlign.Center)
+                          Text(
+                              text = "BAMBOO FOCUS VESSEL",
+                              fontSize = 12.sp,
+                              letterSpacing = 3.sp,
+                              color = MutedInk,
+                              fontWeight = FontWeight.Medium
+                          )
+                          Spacer(modifier = Modifier.height(4.dp))
+                          Text(
+                              text = "Work in silence. Hydrate when focus completes.",
+                              fontSize = 14.sp,
+                              fontFamily = FontFamily.Serif,
+                              fontStyle = FontStyle.Italic,
+                              color = MutedInk,
+                              textAlign = TextAlign.Center
+                          )
                       }
 
                       Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -663,48 +791,75 @@ jobs:
                                       }
                                   },
                                   label = { Text("$mins min", fontFamily = FontFamily.Serif) },
-                                  colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ZenMoss, selectedLabelColor = PaperBg)
+                                  colors = FilterChipDefaults.filterChipColors(
+                                      selectedContainerColor = ZenMoss,
+                                      selectedLabelColor = PaperBg
+                                  )
                               )
                           }
                       }
 
-                      Box(contentAlignment = Alignment.Center, modifier = Modifier.size(230.dp).clip(CircleShape).background(ClaySurface)) {
-                          Canvas(modifier = Modifier.fillMaxSize()) {
-                              val width = size.width
-                              val height = size.height
-                              val waterHeight = height * fillFraction
-
-                              val wavePath = Path().apply {
-                                  moveTo(0f, height)
-                                  lineTo(0f, height - waterHeight)
-                                  var x = 0f
-                                  while (x <= width) {
-                                      val y = (height - waterHeight) + sin(x * 0.03f + wavePhase) * 7f
-                                      lineTo(x, y)
-                                      x += 10f
-                                  }
-                                  lineTo(width, height)
-                                  close()
-                              }
-
-                              drawPath(path = wavePath, brush = Brush.verticalGradient(colors = listOf(MistSage.copy(alpha = 0.65f), ZenMoss.copy(alpha = 0.85f))))
-                              drawCircle(color = Terracotta, radius = size.minDimension / 2 - 4f, style = Stroke(width = 7f))
-                          }
-
+                      // Visualizing Shishi-odoshi fill progress
+                      Box(
+                          contentAlignment = Alignment.Center,
+                          modifier = Modifier
+                              .size(220.dp)
+                              .clip(CircleShape)
+                              .background(ClaySurface)
+                      ) {
                           Column(horizontalAlignment = Alignment.CenterHorizontally) {
                               val mins = remainingSeconds / 60
                               val secs = remainingSeconds % 60
-                              Text(String.format("%02d:%02d", mins, secs), fontSize = 36.sp, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, color = if (fillFraction > 0.55f) PaperBg else BrushInk)
-                              Text(if (isRunning) "Quiet Focus..." else if (sessionComplete) "Vessel Full" else "Ready", fontSize = 13.sp, color = if (fillFraction > 0.55f) PaperBg.copy(alpha = 0.9f) else MutedInk)
+                              Text(
+                                  text = String.format("%02d:%02d", mins, secs),
+                                  fontSize = 36.sp,
+                                  fontFamily = FontFamily.Serif,
+                                  fontWeight = FontWeight.Bold,
+                                  color = BrushInk
+                              )
+                              Spacer(modifier = Modifier.height(4.dp))
+                              Text(
+                                  text = if (isRunning) "Focus Active..." else if (sessionComplete) "Vessel Full" else "Ready",
+                                  fontSize = 12.sp,
+                                  color = MutedInk
+                              )
+                              Spacer(modifier = Modifier.height(8.dp))
+                              LinearProgressIndicator(
+                                  progress = { fillFraction },
+                                  modifier = Modifier
+                                      .width(100.dp)
+                                      .height(6.dp)
+                                      .clip(RoundedCornerShape(3.dp)),
+                                  color = ZenMoss,
+                                  trackColor = MistSage.copy(alpha = 0.3f),
+                              )
                           }
                       }
 
                       if (sessionComplete) {
-                          Card(colors = CardDefaults.cardColors(containerColor = ZenMoss), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                              Column(modifier = Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                  Text("Time to Step Back & Sip", color = PaperBg, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif, fontSize = 17.sp)
+                          Card(
+                              colors = CardDefaults.cardColors(containerColor = ZenMoss),
+                              shape = RoundedCornerShape(16.dp),
+                              modifier = Modifier.fillMaxWidth()
+                          ) {
+                              Column(
+                                  modifier = Modifier.padding(18.dp),
+                                  horizontalAlignment = Alignment.CenterHorizontally
+                              ) {
+                                  Text(
+                                      text = "Time to Step Back & Sip",
+                                      color = PaperBg,
+                                      fontWeight = FontWeight.Bold,
+                                      fontFamily = FontFamily.Serif,
+                                      fontSize = 16.sp
+                                  )
                                   Spacer(modifier = Modifier.height(6.dp))
-                                  Text("Look away from your screen, drink a glass of water slowly, and let your eyes rest.", color = PaperBg.copy(alpha = 0.9f), fontSize = 13.sp, textAlign = TextAlign.Center)
+                                  Text(
+                                      text = "Take a mindful break, rest your eyes, and drink a calm glass of water.",
+                                      color = PaperBg.copy(alpha = 0.9f),
+                                      fontSize = 12.sp,
+                                      textAlign = TextAlign.Center
+                                  )
                                   Spacer(modifier = Modifier.height(12.dp))
                                   Button(
                                       onClick = {
@@ -712,7 +867,8 @@ jobs:
                                           sessionComplete = false
                                           remainingSeconds = selectedMinutes * 60
                                       },
-                                      colors = ButtonDefaults.buttonColors(containerColor = Terracotta)
+                                      colors = ButtonDefaults.buttonColors(containerColor = Terracotta),
+                                      modifier = Modifier.height(48.dp)
                                   ) {
                                       Text("Complete Mindful Break", color = PaperBg)
                                   }
@@ -722,14 +878,27 @@ jobs:
                           Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                               Button(
                                   onClick = { isRunning = !isRunning },
-                                  colors = ButtonDefaults.buttonColors(containerColor = if (isRunning) Terracotta else ZenMoss),
-                                  shape = RoundedCornerShape(26.dp),
-                                  modifier = Modifier.height(50.dp)
+                                  colors = ButtonDefaults.buttonColors(
+                                      containerColor = if (isRunning) Terracotta else ZenMoss
+                                  ),
+                                  shape = RoundedCornerShape(24.dp),
+                                  modifier = Modifier
+                                      .height(48.dp)
+                                      .weight(1f)
                               ) {
-                                  Text(if (isRunning) "Pause" else "Start Focus Pot", fontFamily = FontFamily.Serif, fontSize = 16.sp, color = PaperBg)
+                                  Text(
+                                      text = if (isRunning) "Pause" else "Start Focus Pot",
+                                      fontFamily = FontFamily.Serif,
+                                      fontSize = 15.sp,
+                                      color = PaperBg
+                                  )
                               }
                               if (!isRunning && remainingSeconds != selectedMinutes * 60) {
-                                  OutlinedButton(onClick = { remainingSeconds = selectedMinutes * 60 }, shape = RoundedCornerShape(26.dp), modifier = Modifier.height(50.dp)) {
+                                  OutlinedButton(
+                                      onClick = { remainingSeconds = selectedMinutes * 60 },
+                                      shape = RoundedCornerShape(24.dp),
+                                      modifier = Modifier.height(48.dp)
+                                  ) {
                                       Text("Reset", color = BrushInk)
                                   }
                               }
@@ -738,6 +907,9 @@ jobs:
                   }
               }
 
+              // =========================================================================
+              // SCREEN 3: HERBAL INFUSIONS APOTHECARY SCROLL
+              // =========================================================================
               @Composable
               fun AyurvedicManualScreen() {
                   val context = LocalContext.current
@@ -755,18 +927,55 @@ jobs:
                       }
                   }
 
-                  Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
-                      Text("HERBAL WATER APOTHECARY", fontSize = 12.sp, letterSpacing = 3.sp, color = MutedInk, fontWeight = FontWeight.Medium)
+                  Column(
+                      modifier = Modifier
+                          .fillMaxSize()
+                          .padding(horizontal = 20.dp, vertical = 16.dp)
+                  ) {
+                      Text(
+                          text = "HERBAL WATER MANUAL",
+                          fontSize = 12.sp,
+                          letterSpacing = 3.sp,
+                          color = MutedInk,
+                          fontWeight = FontWeight.Medium
+                      )
                       Spacer(modifier = Modifier.height(4.dp))
-                      Text("Traditional Infusions for a Calm Gut & Clear Mind", fontSize = 18.sp, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, color = BrushInk)
+                      Text(
+                          text = "Traditional Infusions for Gut & Mind",
+                          fontSize = 18.sp,
+                          fontFamily = FontFamily.Serif,
+                          fontWeight = FontWeight.Bold,
+                          color = BrushInk
+                      )
                       Spacer(modifier = Modifier.height(12.dp))
 
                       AnimatedVisibility(visible = steepSecondsLeft > 0, enter = fadeIn(), exit = fadeOut()) {
-                          Card(colors = CardDefaults.cardColors(containerColor = ZenMoss), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                              Row(modifier = Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                          Card(
+                              colors = CardDefaults.cardColors(containerColor = ZenMoss),
+                              shape = RoundedCornerShape(14.dp),
+                              modifier = Modifier
+                                  .fillMaxWidth()
+                                  .padding(bottom = 12.dp)
+                          ) {
+                              Row(
+                                  modifier = Modifier
+                                      .fillMaxWidth()
+                                      .padding(14.dp),
+                                  horizontalArrangement = Arrangement.SpaceBetween,
+                                  verticalAlignment = Alignment.CenterVertically
+                              ) {
                                   Column {
-                                      Text("Steeping $activeSteepName...", color = PaperBg, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Serif)
-                                      Text(String.format("Ready in %02d:%02d", steepSecondsLeft / 60, steepSecondsLeft % 60), color = PaperBg.copy(alpha = 0.85f), fontSize = 13.sp)
+                                      Text(
+                                          text = "Steeping $activeSteepName...",
+                                          color = PaperBg,
+                                          fontWeight = FontWeight.Bold,
+                                          fontFamily = FontFamily.Serif
+                                      )
+                                      Text(
+                                          text = String.format("Ready in %02d:%02d", steepSecondsLeft / 60, steepSecondsLeft % 60),
+                                          color = PaperBg.copy(alpha = 0.85f),
+                                          fontSize = 12.sp
+                                      )
                                   }
                                   TextButton(onClick = { steepSecondsLeft = 0 }) {
                                       Text("Done", color = PaperBg)
@@ -775,7 +984,10 @@ jobs:
                           }
                       }
 
-                      LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+                      LazyColumn(
+                          verticalArrangement = Arrangement.spacedBy(14.dp),
+                          contentPadding = PaddingValues(bottom = 24.dp)
+                      ) {
                           items(ayurvedicManual) { recipe ->
                               HerbalRecipeCard(
                                   recipe = recipe,
@@ -794,40 +1006,90 @@ jobs:
               fun HerbalRecipeCard(recipe: HerbalWater, onStartSteep: () -> Unit) {
                   var expanded by remember { mutableStateOf(false) }
 
-                  Card(colors = CardDefaults.cardColors(containerColor = ClaySurface), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }) {
+                  Card(
+                      colors = CardDefaults.cardColors(containerColor = ClaySurface),
+                      shape = RoundedCornerShape(16.dp),
+                      modifier = Modifier
+                          .fillMaxWidth()
+                          .clickable { expanded = !expanded }
+                  ) {
                       Column(modifier = Modifier.padding(18.dp)) {
-                          Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                          Row(
+                              modifier = Modifier.fillMaxWidth(),
+                              horizontalArrangement = Arrangement.SpaceBetween,
+                              verticalAlignment = Alignment.CenterVertically
+                          ) {
                               Column(modifier = Modifier.weight(1f)) {
-                                  Text(recipe.name, fontSize = 18.sp, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, color = ZenMoss)
-                                  Text(recipe.tamilName, fontSize = 13.sp, color = Terracotta, fontWeight = FontWeight.Medium)
+                                  Text(
+                                      text = recipe.name,
+                                      fontSize = 17.sp,
+                                      fontFamily = FontFamily.Serif,
+                                      fontWeight = FontWeight.Bold,
+                                      color = ZenMoss
+                                  )
+                                  Text(
+                                      text = recipe.tamilName,
+                                      fontSize = 12.sp,
+                                      color = Terracotta,
+                                      fontWeight = FontWeight.Medium
+                                  )
                               }
-                              Icon(imageVector = Icons.Default.Spa, contentDescription = null, tint = ZenMoss)
+                              Icon(
+                                  imageVector = Icons.Default.Spa,
+                                  contentDescription = null,
+                                  tint = ZenMoss,
+                                  modifier = Modifier.size(24.dp)
+                              )
                           }
                           Spacer(modifier = Modifier.height(8.dp))
-                          Text(recipe.tagline, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = BrushInk)
-                          Spacer(modifier = Modifier.height(6.dp))
-                          Text(recipe.mindBodyBenefit, fontSize = 13.sp, color = MutedInk, lineHeight = 19.sp)
+                          Text(
+                              text = recipe.tagline,
+                              fontSize = 13.sp,
+                              fontWeight = FontWeight.SemiBold,
+                              color = BrushInk
+                          )
+                          Spacer(modifier = Modifier.height(4.dp))
+                          Text(
+                              text = recipe.mindBodyBenefit,
+                              fontSize = 12.sp,
+                              color = MutedInk,
+                              lineHeight = 18.sp
+                          )
 
                           AnimatedVisibility(visible = expanded) {
                               Column(modifier = Modifier.padding(top = 12.dp)) {
                                   HorizontalDivider(color = MistSage.copy(alpha = 0.35f))
                                   Spacer(modifier = Modifier.height(10.dp))
-                                  Text("Ingredients:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = BrushInk)
-                                  Text(recipe.ingredients, fontSize = 13.sp, color = MutedInk)
+                                  Text("Ingredients:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BrushInk)
+                                  Text(recipe.ingredients, fontSize = 12.sp, color = MutedInk)
                                   Spacer(modifier = Modifier.height(8.dp))
-                                  Text("Preparation:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = BrushInk)
-                                  Text(recipe.method, fontSize = 13.sp, color = MutedInk, lineHeight = 18.sp)
+                                  Text("Preparation:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = BrushInk)
+                                  Text(recipe.method, fontSize = 12.sp, color = MutedInk, lineHeight = 17.sp)
                                   Spacer(modifier = Modifier.height(8.dp))
-                                  Text("Best Time: ${recipe.bestTime}", fontSize = 12.sp, fontStyle = FontStyle.Italic, color = ZenMoss, fontWeight = FontWeight.SemiBold)
+                                  Text("Best Time: ${recipe.bestTime}", fontSize = 11.sp, fontStyle = FontStyle.Italic, color = ZenMoss, fontWeight = FontWeight.SemiBold)
                                   Spacer(modifier = Modifier.height(12.dp))
-                                  OutlinedButton(onClick = onStartSteep, modifier = Modifier.fillMaxWidth()) {
-                                      Text("Start ${recipe.steepMinutes}-Min Steep Timer", color = ZenMoss, fontFamily = FontFamily.Serif)
+                                  OutlinedButton(
+                                      onClick = onStartSteep,
+                                      modifier = Modifier
+                                          .fillMaxWidth()
+                                          .height(48.dp)
+                                  ) {
+                                      Text(
+                                          text = "Start ${recipe.steepMinutes}-Min Steep Timer",
+                                          color = ZenMoss,
+                                          fontFamily = FontFamily.Serif
+                                      )
                                   }
                               }
                           }
                           if (!expanded) {
                               Spacer(modifier = Modifier.height(6.dp))
-                              Text("Tap for recipe & steep timer →", fontSize = 12.sp, color = ZenMoss, fontWeight = FontWeight.Medium)
+                              Text(
+                                  text = "Tap for recipe & steep timer →",
+                                  fontSize = 11.sp,
+                                  color = ZenMoss,
+                                  fontWeight = FontWeight.Medium
+                              )
                           }
                       }
                   }
@@ -854,20 +1116,17 @@ jobs:
           """)
           PYEOF
 
-      - name: Compile Android APK with Gradle
+      - name: Compile Android APK (Native JDK 17 & Android SDK)
         run: |
-          gradle assembleDebug --no-daemon
+          export JAVA_HOME=$JAVA_HOME_17_X64
+          export PATH=$JAVA_HOME/bin:$PATH
+          gradle assembleDebug --no-daemon --no-build-cache
           cp app/build/outputs/apk/debug/app-debug.apk Neer-Zen.apk
 
-      - name: Upload Artifact (Browser View)
-        uses: actions/upload-artifact@v4
-        with:
-          name: Neer-Zen-APK
-          path: Neer-Zen.apk
-
-      - name: Publish Direct APK to GitHub Releases (For GitHub Mobile App)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: "Neer Zen APK (Build #${{ github.run_number }})"
-          files: Neer-Zen.apk
+      - name: Publish Direct APK to GitHub Releases (Native GH CLI)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v1.2.${{ github.run_number }}" Neer-Zen.apk \
+            --title "Neer Zen APK v1.2 (Build #${{ github.run_number }})" \
+            --notes "Refactored with Impeccable Material 3, accessible touch targets, and authentic Sumi-e color theory."
