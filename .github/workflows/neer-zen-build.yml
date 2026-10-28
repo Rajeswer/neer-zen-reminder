@@ -1,0 +1,886 @@
+name: Build Neer Zen APK
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: neer-zen-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # Explicit modern packages; do not request the obsolete "tools" package.
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.6"
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Generate Neer Android project
+        shell: bash
+        run: |
+          python3 - <<'PYEOF'
+          from pathlib import Path
+          import textwrap
+
+          def write(path, content):
+              p = Path(path)
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(textwrap.dedent(content).lstrip(), encoding="utf-8")
+
+          write("settings.gradle.kts", """
+              pluginManagement {
+                  repositories {
+                      google()
+                      mavenCentral()
+                      gradlePluginPortal()
+                  }
+              }
+              dependencyResolutionManagement {
+                  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+                  repositories {
+                      google()
+                      mavenCentral()
+                  }
+              }
+              rootProject.name = "Neer"
+              include(":app")
+          """)
+
+          write("build.gradle.kts", """
+              plugins {
+                  id("com.android.application") version "8.4.2" apply false
+                  id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+              }
+          """)
+
+          write("gradle.properties", """
+              org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+              org.gradle.parallel=true
+              org.gradle.caching=true
+              android.useAndroidX=true
+              kotlin.code.style=official
+              android.nonTransitiveRClass=true
+          """)
+
+          write("app/build.gradle.kts", """
+              plugins {
+                  id("com.android.application")
+                  id("org.jetbrains.kotlin.android")
+              }
+
+              android {
+                  namespace = "com.zen.neer"
+                  compileSdk = 35
+
+                  defaultConfig {
+                      applicationId = "com.zen.neer"
+                      minSdk = 26
+                      targetSdk = 35
+                      versionCode = 5
+                      versionName = "1.4"
+                  }
+
+                  buildTypes {
+                      release {
+                          isMinifyEnabled = false
+                      }
+                  }
+
+                  compileOptions {
+                      sourceCompatibility = JavaVersion.VERSION_17
+                      targetCompatibility = JavaVersion.VERSION_17
+                  }
+                  kotlinOptions { jvmTarget = "17" }
+                  buildFeatures { compose = true }
+                  composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+                  packaging {
+                      resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+                  }
+              }
+
+              dependencies {
+                  val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
+                  implementation(composeBom)
+                  implementation("androidx.core:core-ktx:1.13.1")
+                  implementation("androidx.activity:activity-compose:1.9.0")
+                  implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
+                  implementation("androidx.compose.ui:ui")
+                  implementation("androidx.compose.ui:ui-graphics")
+                  implementation("androidx.compose.ui:ui-tooling-preview")
+                  implementation("androidx.compose.foundation:foundation")
+                  implementation("androidx.compose.material3:material3")
+                  implementation("androidx.compose.material:material-icons-extended")
+                  debugImplementation("androidx.compose.ui:ui-tooling")
+              }
+          """)
+
+          write("app/src/main/res/values/strings.xml", """
+              <resources>
+                  <string name="app_name">Neer Zen</string>
+              </resources>
+          """)
+
+          write("app/src/main/AndroidManifest.xml", """
+              <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+                  <uses-permission android:name="android.permission.VIBRATE" />
+                  <application
+                      android:allowBackup="true"
+                      android:label="@string/app_name"
+                      android:supportsRtl="true"
+                      android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                      <activity
+                          android:name=".MainActivity"
+                          android:exported="true">
+                          <intent-filter>
+                              <action android:name="android.intent.action.MAIN" />
+                              <category android:name="android.intent.category.LAUNCHER" />
+                          </intent-filter>
+                      </activity>
+                  </application>
+              </manifest>
+          """)
+
+          write("app/src/main/java/com/zen/neer/MainActivity.kt", """
+              package com.zen.neer
+
+              import android.content.Context
+              import android.os.Build
+              import android.os.Bundle
+              import android.os.VibrationEffect
+              import android.os.Vibrator
+              import androidx.activity.ComponentActivity
+              import androidx.activity.compose.setContent
+              import androidx.compose.animation.AnimatedContent
+              import androidx.compose.animation.AnimatedVisibility
+              import androidx.compose.animation.animateContentSize
+              import androidx.compose.animation.togetherWith
+              import androidx.compose.animation.animateColorAsState
+              import androidx.compose.animation.core.FastOutSlowInEasing
+              import androidx.compose.animation.core.RepeatMode
+              import androidx.compose.animation.core.animateFloat
+              import androidx.compose.animation.core.animateFloatAsState
+              import androidx.compose.animation.core.infiniteRepeatable
+              import androidx.compose.animation.core.rememberInfiniteTransition
+              import androidx.compose.animation.core.tween
+              import androidx.compose.animation.fadeIn
+              import androidx.compose.animation.fadeOut
+              import androidx.compose.animation.slideInHorizontally
+              import androidx.compose.animation.slideOutHorizontally
+              import androidx.compose.foundation.Canvas
+              import androidx.compose.foundation.background
+              import androidx.compose.foundation.clickable
+              import androidx.compose.foundation.interaction.MutableInteractionSource
+              import androidx.compose.foundation.layout.*
+              import androidx.compose.foundation.lazy.LazyColumn
+              import androidx.compose.foundation.lazy.items
+              import androidx.compose.foundation.rememberScrollState
+              import androidx.compose.foundation.shape.CircleShape
+              import androidx.compose.foundation.shape.RoundedCornerShape
+              import androidx.compose.foundation.verticalScroll
+              import androidx.compose.material.icons.Icons
+              import androidx.compose.material.icons.rounded.BookOpen
+              import androidx.compose.material.icons.rounded.Check
+              import androidx.compose.material.icons.rounded.ChevronRight
+              import androidx.compose.material.icons.rounded.Pause
+              import androidx.compose.material.icons.rounded.PlayArrow
+              import androidx.compose.material.icons.rounded.Refresh
+              import androidx.compose.material.icons.rounded.SelfImprovement
+              import androidx.compose.material.icons.rounded.Spa
+              import androidx.compose.material.icons.rounded.WaterDrop
+              import androidx.compose.material3.*
+              import androidx.compose.runtime.*
+              import androidx.compose.ui.Alignment
+              import androidx.compose.ui.Modifier
+              import androidx.compose.ui.draw.alpha
+              import androidx.compose.ui.draw.clip
+              import androidx.compose.ui.draw.scale
+              import androidx.compose.ui.geometry.Offset
+              import androidx.compose.ui.geometry.Size
+              import androidx.compose.ui.graphics.Color
+              import androidx.compose.ui.graphics.StrokeCap
+              import androidx.compose.ui.graphics.drawscope.Stroke
+              import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+              import androidx.compose.ui.platform.LocalContext
+              import androidx.compose.ui.platform.LocalHapticFeedback
+              import androidx.compose.ui.semantics.Role
+              import androidx.compose.ui.semantics.contentDescription
+              import androidx.compose.ui.semantics.role
+              import androidx.compose.ui.semantics.semantics
+              import androidx.compose.ui.text.font.FontFamily
+              import androidx.compose.ui.text.font.FontStyle
+              import androidx.compose.ui.text.font.FontWeight
+              import androidx.compose.ui.text.style.TextAlign
+              import androidx.compose.ui.unit.dp
+              import androidx.compose.ui.unit.sp
+              import kotlinx.coroutines.delay
+              import java.util.Locale
+
+              private val Paper = Color(0xFFE8EAE7) // Ash-grey paper
+              private val SurfaceWarm = Color(0xFFF1F2EF) // Mist-washed surface
+              private val SurfaceStone = Color(0xFFD9DDD8) // River stone
+              private val Ink = Color(0xFF242927) // Sumi ink
+              private val Moss = Color(0xFF4D5A53) // Restrained grey-sage
+              private val Sage = Color(0xFFA6ADA8) // Ash sage
+              private val WaterBlue = Color(0xFF8FAAB4) // Mineral water blue; no terracotta
+              private val Muted = Color(0xFF626966)
+              private val Hairline = Color(0xFFCDD2CE)
+
+              private enum class SipState { READY, SIP, PAUSE }
+              private data class Infusion(
+                  val name: String,
+                  val tamil: String,
+                  val note: String,
+                  val ingredients: String,
+                  val method: String,
+                  val bestTime: String,
+                  val minutes: Int
+              )
+
+              private val infusions = listOf(
+                  Infusion("Jeera water", "சீரகத் தண்ணீர் · Seeraga neer",
+                      "A simple, earthy everyday infusion.",
+                      "1 tsp cumin seeds + 500 ml water",
+                      "Simmer gently for 5 minutes. Cover, rest for 5 minutes, then strain.",
+                      "Morning or after a meal", 5),
+                  Infusion("Vendhaya water", "வெந்தயத் தண்ணீர் · Vendhaya neer",
+                      "A traditional fenugreek infusion.",
+                      "1 tsp fenugreek seeds + 1 glass water",
+                      "Soak the seeds overnight in a clean covered vessel. Strain before drinking.",
+                      "Morning", 10),
+                  Infusion("Omam water", "ஓமத் தண்ணீர் · Oma neer",
+                      "Warm, aromatic ajwain water.",
+                      "½ tsp ajwain + 400 ml water",
+                      "Lightly roast ajwain, add water and simmer for 4 minutes. Strain.",
+                      "After a heavy meal", 4),
+                  Infusion("Sombu water", "சோம்புத் தண்ணீர் · Sombu neer",
+                      "A naturally aromatic fennel infusion.",
+                      "1 tsp fennel seeds + 500 ml hot water",
+                      "Pour hot water over the seeds, cover and steep for 7 minutes.",
+                      "Late afternoon", 7),
+                  Infusion("Vettiver water", "வெட்டிவேர் · Vettiver neer",
+                      "A fragrant, traditional water infusion.",
+                      "A small bundle of food-safe, thoroughly washed vetiver roots + 1 litre water",
+                      "Infuse in a clean covered vessel for 2 hours. Discard roots after use.",
+                      "Warm afternoons", 15)
+              )
+
+              class MainActivity : ComponentActivity() {
+                  override fun onCreate(savedInstanceState: Bundle?) {
+                      super.onCreate(savedInstanceState)
+                      window.statusBarColor = android.graphics.Color.rgb(232, 234, 231)
+                      window.navigationBarColor = android.graphics.Color.rgb(232, 234, 231)
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                          window.decorView.systemUiVisibility =
+                              android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                              android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                      }
+                      setContent {
+                          val scheme = lightColorScheme(
+                              primary = Moss, onPrimary = SurfaceWarm,
+                              secondary = WaterBlue, onSecondary = Ink,
+                              background = Paper, onBackground = Ink,
+                              surface = SurfaceWarm, onSurface = Ink,
+                              surfaceVariant = SurfaceStone, onSurfaceVariant = Muted,
+                              outline = Hairline
+                          )
+                          MaterialTheme(colorScheme = scheme, typography = Typography()) {
+                              Surface(Modifier.fillMaxSize(), color = Paper) { NeerApp() }
+                          }
+                      }
+                  }
+              }
+
+              @Composable
+              private fun NeerApp() {
+                  val context = LocalContext.current
+                  val prefs = remember { context.getSharedPreferences("neer_zen_prefs", Context.MODE_PRIVATE) }
+                  val today = remember { java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
+                  var dayKey by remember { mutableStateOf(prefs.getString("pebbles_day", "") ?: "") }
+                  var pebbles by remember {
+                      mutableIntStateOf(if (dayKey == today) prefs.getInt("pebbles_count", 0) else 0)
+                  }
+                  var tab by remember { mutableIntStateOf(0) }
+
+                  LaunchedEffect(today) {
+                      if (dayKey != today) {
+                          dayKey = today
+                          pebbles = 0
+                          prefs.edit().putString("pebbles_day", today).putInt("pebbles_count", 0).apply()
+                      }
+                  }
+                  fun completeSip() {
+                      pebbles += 1
+                      prefs.edit().putString("pebbles_day", today).putInt("pebbles_count", pebbles).apply()
+                  }
+
+                  Scaffold(
+                      containerColor = Paper,
+                      bottomBar = {
+                          NavigationBar(
+                              containerColor = SurfaceWarm,
+                              contentColor = Moss,
+                              tonalElevation = 0.dp,
+                              modifier = Modifier.height(76.dp)
+                          ) {
+                              NavigationBarItem(
+                                  selected = tab == 0, onClick = { tab = 0 },
+                                  icon = { Icon(Icons.Rounded.WaterDrop, null, Modifier.size(21.dp)) },
+                                  label = { Text("Sip", fontSize = 11.sp) },
+                                  colors = navColors()
+                              )
+                              NavigationBarItem(
+                                  selected = tab == 1, onClick = { tab = 1 },
+                                  icon = { Icon(Icons.Rounded.SelfImprovement, null, Modifier.size(21.dp)) },
+                                  label = { Text("Focus", fontSize = 11.sp) },
+                                  colors = navColors()
+                              )
+                              NavigationBarItem(
+                                  selected = tab == 2, onClick = { tab = 2 },
+                                  icon = { Icon(Icons.Rounded.BookOpen, null, Modifier.size(21.dp)) },
+                                  label = { Text("Infusions", fontSize = 11.sp) },
+                                  colors = navColors()
+                              )
+                          }
+                      }
+                  ) { padding ->
+                      Box(Modifier.fillMaxSize().padding(padding)) {
+                          AnimatedContent(
+                              targetState = tab,
+                              transitionSpec = {
+                                  (fadeIn(tween(220)) + slideInHorizontally(
+                                      animationSpec = tween(280, easing = FastOutSlowInEasing),
+                                      initialOffsetX = { it / 18 }
+                                  )) togetherWith
+                                  (fadeOut(tween(140)) + slideOutHorizontally(
+                                      animationSpec = tween(220), targetOffsetX = { -it / 24 }
+                                  ))
+                              },
+                              label = "tab-transition"
+                          ) { page ->
+                              when (page) {
+                                  0 -> SipScreen(pebbles, ::completeSip) {
+                                      pebbles = 0
+                                      prefs.edit().putInt("pebbles_count", 0).apply()
+                                  }
+                                  1 -> FocusScreen(::completeSip)
+                                  else -> InfusionsScreen()
+                              }
+                          }
+                      }
+                  }
+              }
+
+              @Composable
+              private fun navColors() = NavigationBarItemDefaults.colors(
+                  selectedIconColor = Moss,
+                  selectedTextColor = Moss,
+                  indicatorColor = Sage.copy(alpha = 0.22f),
+                  unselectedIconColor = Muted.copy(alpha = 0.75f),
+                  unselectedTextColor = Muted.copy(alpha = 0.85f)
+              )
+
+              @Composable
+              private fun Eyebrow(text: String, modifier: Modifier = Modifier) {
+                  Text(text.uppercase(), modifier = modifier, color = Muted,
+                      fontSize = 10.sp, letterSpacing = 2.1.sp, fontWeight = FontWeight.SemiBold)
+              }
+
+              @Composable
+              private fun ScreenTitle(title: String, subtitle: String) {
+                  Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                      Eyebrow("NEER  /  DAILY RITUAL")
+                      Text(title, fontSize = 29.sp, lineHeight = 34.sp,
+                          fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, color = Ink)
+                      Text(subtitle, fontSize = 13.sp, lineHeight = 19.sp, color = Muted)
+                  }
+              }
+
+              @Composable
+              private fun SipScreen(count: Int, onComplete: () -> Unit, onReset: () -> Unit) {
+                  val context = LocalContext.current
+                  val haptics = LocalHapticFeedback.current
+                  var state by remember { mutableStateOf(SipState.READY) }
+                  var progress by remember { mutableFloatStateOf(0f) }
+                  var seal by remember { mutableFloatStateOf(0f) }
+                  var message by remember { mutableStateOf("A small pause. A clearer moment.") }
+                  var reflection by remember { mutableIntStateOf(0) }
+                  val reflections = listOf(
+                      "Let your shoulders soften. You have time for one quiet breath.",
+                      "Notice the temperature of the water, then return to the present.",
+                      "Unclench your jaw. Let this small pause be enough.",
+                      "நீர் இன்றி அமையாது உலகு · Without water, life cannot be."
+                  )
+                  LaunchedEffect(state) {
+                      if (state == SipState.SIP) {
+                          haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                          message = "Breathe in gently. Lift your glass."
+                          for (i in 1..120) {
+                              progress = i / 120f
+                              if (i == 40) message = "Sip slowly. No need to hurry."
+                              if (i == 80) message = "Swallow softly, then exhale."
+                              delay(100)
+                          }
+                          state = SipState.PAUSE
+                      } else if (state == SipState.PAUSE) {
+                          message = "Set your glass down. Take one easy breath."
+                          for (i in 1..28) { seal = i / 28f; delay(50) }
+                          haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                          onComplete()
+                          reflection = (reflection + 1) % reflections.size
+                          state = SipState.READY
+                      } else {
+                          progress = 0f
+                          seal = 0f
+                          message = "A small pause. A clearer moment."
+                      }
+                  }
+
+                  Column(
+                      Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                          .padding(horizontal = 24.dp).padding(top = 25.dp, bottom = 22.dp),
+                      horizontalAlignment = Alignment.CenterHorizontally
+                  ) {
+                      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                          Column(Modifier.weight(1f)) {
+                              Eyebrow("நீர்  ·  NEER ZEN")
+                              Spacer(Modifier.height(8.dp))
+                              Text("Return to your\nnatural rhythm.", fontSize = 30.sp,
+                                  lineHeight = 35.sp, fontFamily = FontFamily.Serif,
+                                  fontWeight = FontWeight.Medium, color = Ink)
+                              Spacer(Modifier.height(7.dp))
+                              Text("A little water. A little stillness.", color = Muted, fontSize = 13.sp)
+                          }
+                          Box(Modifier.size(44.dp).clip(CircleShape).background(SurfaceStone),
+                              contentAlignment = Alignment.Center) {
+                              Icon(Icons.Rounded.WaterDrop, null, tint = Moss, modifier = Modifier.size(22.dp))
+                          }
+                      }
+
+                      Spacer(Modifier.height(22.dp))
+                      Box(
+                          Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                              .background(SurfaceWarm).padding(vertical = 22.dp, horizontal = 16.dp),
+                          contentAlignment = Alignment.Center
+                      ) {
+                          Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                              Box(Modifier.size(238.dp).semantics {
+                                  role = Role.Button
+                                  contentDescription = "Start mindful sip ritual"
+                              }.clickable(
+                                  interactionSource = remember { MutableInteractionSource() },
+                                  indication = null,
+                                  enabled = state == SipState.READY
+                              ) { state = SipState.SIP }, contentAlignment = Alignment.Center) {
+                                  Canvas(Modifier.fillMaxSize()) {
+                                      val r = size.minDimension * 0.385f
+                                      val topLeft = Offset(size.width / 2 - r, size.height / 2 - r)
+                                      val arcSize = Size(r * 2, r * 2)
+                                      // Three offset washes create an imperfect Sumi-e brush ring.
+                                      drawArc(Sage.copy(alpha = 0.20f), -87f, 342f, false, topLeft, arcSize,
+                                          style = Stroke(width = 19.dp.toPx(), cap = StrokeCap.Round))
+                                      drawArc(WaterBlue.copy(alpha = 0.28f), -93f, 326f, false,
+                                          Offset(topLeft.x + 2.dp.toPx(), topLeft.y - 1.dp.toPx()), arcSize,
+                                          style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round))
+                                      val sweep = when (state) {
+                                          SipState.READY -> 38f
+                                          SipState.SIP -> 340f * progress
+                                          SipState.PAUSE -> 340f
+                                      }
+                                      drawArc(Moss.copy(alpha = 0.72f), -90f, sweep, false, topLeft, arcSize,
+                                          style = Stroke(width = 13.dp.toPx(), cap = StrokeCap.Round))
+                                      drawArc(Ink.copy(alpha = 0.34f), -84f, (sweep - 8f).coerceAtLeast(0f), false,
+                                          Offset(topLeft.x - 1.dp.toPx(), topLeft.y + 1.5.dp.toPx()), arcSize,
+                                          style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+                                      if (state == SipState.PAUSE) {
+                                          val rippleAlpha = (1f - seal).coerceIn(0f, 1f)
+                                          drawCircle(WaterBlue.copy(alpha = rippleAlpha * 0.85f),
+                                              radius = r * (0.3f + seal * 0.65f), style = Stroke(width = 2.dp.toPx()))
+                                          drawCircle(WaterBlue.copy(alpha = rippleAlpha * 0.48f),
+                                              radius = r * (0.18f + seal * 0.42f), style = Stroke(width = 1.dp.toPx()))
+                                      }
+                                  }
+                                  Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                      AnimatedContent(state, label = "sip-state") { current ->
+                                          when (current) {
+                                              SipState.READY -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                  Icon(Icons.Rounded.WaterDrop, null, tint = WaterBlue, modifier = Modifier.size(25.dp))
+                                                  Spacer(Modifier.height(7.dp))
+                                                  Text("BEGIN", fontSize = 10.sp, letterSpacing = 2.4.sp,
+                                                      fontWeight = FontWeight.Bold, color = WaterBlue)
+                                                  Text("12 second sip", fontSize = 13.sp, color = Muted)
+                                              }
+                                              SipState.SIP -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                  Text("${(12 - (progress * 12).toInt()).coerceAtLeast(0)}",
+                                                      fontSize = 43.sp, fontFamily = FontFamily.Serif, color = Moss)
+                                                  Text("SECONDS", fontSize = 9.sp, letterSpacing = 2.sp, color = Muted)
+                                              }
+                                              SipState.PAUSE -> Text("Stillness", fontSize = 20.sp,
+                                                  fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, color = WaterBlue)
+                                          }
+                                      }
+                                  }
+                              }
+                              Spacer(Modifier.height(6.dp))
+                              Text(message, fontSize = 13.sp, color = Muted, textAlign = TextAlign.Center)
+                              Spacer(Modifier.height(14.dp))
+                              if (state == SipState.READY) {
+                                  Button(onClick = { state = SipState.SIP },
+                                      modifier = Modifier.fillMaxWidth().height(50.dp),
+                                      shape = RoundedCornerShape(16.dp),
+                                      colors = ButtonDefaults.buttonColors(containerColor = Moss)) {
+                                      Text("Begin mindful sip", fontWeight = FontWeight.SemiBold)
+                                      Spacer(Modifier.width(8.dp))
+                                      Icon(Icons.Rounded.ChevronRight, null, Modifier.size(18.dp))
+                                  }
+                              } else if (state == SipState.SIP) {
+                                  TextButton(onClick = { state = SipState.READY }) { Text("Cancel ritual", color = Muted) }
+                              } else {
+                                  Text("Let the moment settle", color = WaterBlue, fontSize = 12.sp)
+                              }
+                          }
+                      }
+
+                      Spacer(Modifier.height(12.dp))
+                      // Quiet river-stone motif: understated watercolor washes, never a dashboard chart.
+                      Canvas(Modifier.fillMaxWidth().height(54.dp)) {
+                          val baseline = size.height * 0.60f
+                          drawOval(color = WaterBlue.copy(alpha = 0.10f),
+                              topLeft = Offset(size.width * 0.18f, baseline),
+                              size = Size(size.width * 0.64f, size.height * 0.22f))
+                          val stones = listOf(
+                              Triple(0.34f, 0.54f, 7f), Triple(0.43f, 0.48f, 10f),
+                              Triple(0.54f, 0.56f, 8f), Triple(0.63f, 0.51f, 6f)
+                          )
+                          stones.forEachIndexed { index, stone ->
+                              drawOval(color = listOf(Ink, Moss, Sage, WaterBlue)[index].copy(alpha = 0.70f),
+                                  topLeft = Offset(size.width * stone.first, size.height * stone.second),
+                                  size = Size(stone.third.dp.toPx() * 1.7f, stone.third.dp.toPx()))
+                          }
+                          drawArc(WaterBlue.copy(alpha = 0.40f), 12f, 156f, false,
+                              Offset(size.width * 0.34f, size.height * 0.57f),
+                              Size(size.width * 0.32f, size.height * 0.22f),
+                              style = Stroke(width = 1.dp.toPx()))
+                      }
+                      Spacer(Modifier.height(4.dp))
+                      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                          Card(Modifier.weight(1f), shape = RoundedCornerShape(20.dp),
+                              colors = CardDefaults.cardColors(containerColor = SurfaceStone)) {
+                              Column(Modifier.padding(16.dp)) {
+                                  Eyebrow("TODAY")
+                                  Spacer(Modifier.height(8.dp))
+                                  Row(verticalAlignment = Alignment.CenterVertically) {
+                                      Text("$count", fontSize = 30.sp, fontFamily = FontFamily.Serif, color = Moss)
+                                      Spacer(Modifier.width(7.dp))
+                                      Text("quiet\nmoments", fontSize = 11.sp, lineHeight = 15.sp, color = Muted)
+                                  }
+                              }
+                          }
+                          Card(Modifier.weight(1.35f), shape = RoundedCornerShape(20.dp),
+                              colors = CardDefaults.cardColors(containerColor = SurfaceWarm)) {
+                              Column(Modifier.padding(16.dp)) {
+                                  Eyebrow("A THOUGHT")
+                                  Spacer(Modifier.height(7.dp))
+                                  Text(reflections[reflection], fontSize = 12.sp, lineHeight = 17.sp,
+                                      fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, color = Ink)
+                                  if (count > 0) {
+                                      Spacer(Modifier.height(4.dp))
+                                      Text("Reset count", fontSize = 10.sp, color = WaterBlue,
+                                          modifier = Modifier.clickable { onReset() })
+                                  }
+                              }
+                          }
+                      }
+                      Spacer(Modifier.height(12.dp))
+                      Text("Slow down, not your day.", fontSize = 11.sp, color = Muted.copy(alpha = 0.8f),
+                          fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic)
+                  }
+              }
+
+              @Composable
+              private fun FocusScreen(onSipCompleted: () -> Unit) {
+                  val haptics = LocalHapticFeedback.current
+                  var minutes by remember { mutableIntStateOf(25) }
+                  var remaining by remember { mutableIntStateOf(25 * 60) }
+                  var running by remember { mutableStateOf(false) }
+                  var completed by remember { mutableStateOf(false) }
+                  LaunchedEffect(running, remaining) {
+                      if (running && remaining > 0) {
+                          delay(1000)
+                          remaining -= 1
+                      } else if (running && remaining == 0) {
+                          running = false
+                          completed = true
+                          haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                      }
+                  }
+                  val fraction by animateFloatAsState(
+                      targetValue = if (minutes > 0) 1f - remaining.toFloat() / (minutes * 60f) else 0f,
+                      animationSpec = tween(450, easing = FastOutSlowInEasing), label = "focus-progress"
+                  )
+                  Column(
+                      Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                          .padding(horizontal = 24.dp).padding(top = 28.dp, bottom = 24.dp),
+                      horizontalAlignment = Alignment.CenterHorizontally
+                  ) {
+                      ScreenTitle("Make room for focus.", "One task. One quiet stretch. Then a mindful break.")
+                      Spacer(Modifier.height(26.dp))
+                      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                          listOf(15, 25, 45).forEach { value ->
+                              val selected = minutes == value
+                              Surface(
+                                  onClick = {
+                                      if (!running) {
+                                          minutes = value
+                                          remaining = value * 60
+                                          completed = false
+                                      }
+                                  },
+                                  shape = RoundedCornerShape(14.dp),
+                                  color = if (selected) Moss else SurfaceWarm,
+                                  border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, Hairline)
+                              ) {
+                                  Text("$value min", Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
+                                      color = if (selected) SurfaceWarm else Ink, fontSize = 12.sp,
+                                      fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+                              }
+                          }
+                      }
+                      Spacer(Modifier.height(28.dp))
+                      Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp),
+                          colors = CardDefaults.cardColors(containerColor = SurfaceWarm)) {
+                          Column(Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 22.dp),
+                              horizontalAlignment = Alignment.CenterHorizontally) {
+                              Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
+                                  Canvas(Modifier.fillMaxSize()) {
+                                      val r = size.minDimension * 0.42f
+                                      drawArc(Sage.copy(alpha = 0.2f), -90f, 360f, false,
+                                          Offset(size.width / 2 - r, size.height / 2 - r), Size(r * 2, r * 2),
+                                          style = Stroke(width = 10.dp.toPx()))
+                                      drawArc(Moss, -90f, 360f * fraction, false,
+                                          Offset(size.width / 2 - r, size.height / 2 - r), Size(r * 2, r * 2),
+                                          style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round))
+                                  }
+                                  Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                      Text(String.format(Locale.US, "%02d:%02d", remaining / 60, remaining % 60),
+                                          fontSize = 39.sp, fontFamily = FontFamily.Serif, color = Ink)
+                                      Spacer(Modifier.height(5.dp))
+                                      Text(if (running) "IN YOUR FLOW" else if (completed) "SESSION COMPLETE" else "READY WHEN YOU ARE",
+                                          fontSize = 9.sp, letterSpacing = 1.5.sp, color = Muted)
+                                  }
+                              }
+                              Spacer(Modifier.height(20.dp))
+                              Text(if (completed) "Your focus session is complete." else "Let everything else wait.",
+                                  fontSize = 16.sp, fontFamily = FontFamily.Serif, color = Ink, textAlign = TextAlign.Center)
+                              Spacer(Modifier.height(6.dp))
+                              Text("Hydrate and rest your eyes when the timer ends.",
+                                  fontSize = 12.sp, color = Muted, textAlign = TextAlign.Center)
+                              Spacer(Modifier.height(22.dp))
+                              if (completed) {
+                                  Button(onClick = {
+                                      onSipCompleted()
+                                      completed = false
+                                      remaining = minutes * 60
+                                  }, modifier = Modifier.fillMaxWidth().height(50.dp),
+                                      shape = RoundedCornerShape(16.dp),
+                                      colors = ButtonDefaults.buttonColors(containerColor = Moss)) {
+                                      Icon(Icons.Rounded.Check, null, Modifier.size(18.dp))
+                                      Spacer(Modifier.width(8.dp))
+                                      Text("Complete mindful break")
+                                  }
+                              } else {
+                                  Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                      Button(onClick = { running = !running },
+                                          modifier = Modifier.weight(1f).height(50.dp),
+                                          shape = RoundedCornerShape(16.dp),
+                                          colors = ButtonDefaults.buttonColors(containerColor = Moss)) {
+                                          Icon(if (running) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null)
+                                          Spacer(Modifier.width(7.dp))
+                                          Text(if (running) "Pause" else "Start focus")
+                                      }
+                                      if (!running && remaining != minutes * 60) {
+                                          OutlinedButton(onClick = { remaining = minutes * 60; completed = false },
+                                              modifier = Modifier.height(50.dp), shape = RoundedCornerShape(16.dp)) {
+                                              Icon(Icons.Rounded.Refresh, null)
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                      Spacer(Modifier.height(18.dp))
+                      Row(verticalAlignment = Alignment.CenterVertically,
+                          modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                              .background(SurfaceStone).padding(16.dp)) {
+                          Icon(Icons.Rounded.SelfImprovement, null, tint = Moss, modifier = Modifier.size(25.dp))
+                          Spacer(Modifier.width(12.dp))
+                          Column {
+                              Text("A gentler kind of productivity", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                              Text("Take one thing at a time. The pause is part of the work.",
+                                  fontSize = 11.sp, lineHeight = 16.sp, color = Muted)
+                          }
+                      }
+                  }
+              }
+
+              @Composable
+              private fun InfusionsScreen() {
+                  var active by remember { mutableStateOf<String?>(null) }
+                  var seconds by remember { mutableIntStateOf(0) }
+                  var expanded by remember { mutableStateOf<String?>(null) }
+                  val context = LocalContext.current
+                  LaunchedEffect(seconds) {
+                      if (seconds > 0) {
+                          delay(1000)
+                          seconds -= 1
+                          if (seconds == 0) {
+                              val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                              try {
+                                  if (Build.VERSION.SDK_INT >= 26) vibrator?.vibrate(
+                                      VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+                                  else {
+                                      @Suppress("DEPRECATION")
+                                      vibrator?.vibrate(100)
+                                  }
+                              } catch (_: Exception) {}
+                          }
+                      }
+                  }
+                  Column(Modifier.fillMaxSize().padding(horizontal = 22.dp).padding(top = 26.dp)) {
+                      ScreenTitle("The infusion shelf.", "Simple traditional recipes, made at your own pace.")
+                      Spacer(Modifier.height(16.dp))
+                      AnimatedVisibility(seconds > 0, enter = fadeIn(tween(180)), exit = fadeOut(tween(150))) {
+                          Card(Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                              shape = RoundedCornerShape(18.dp),
+                              colors = CardDefaults.cardColors(containerColor = Moss)) {
+                              Row(Modifier.fillMaxWidth().padding(15.dp),
+                                  verticalAlignment = Alignment.CenterVertically) {
+                                  Column(Modifier.weight(1f)) {
+                                      Text("Steeping · $active", color = SurfaceWarm, fontSize = 13.sp,
+                                          fontWeight = FontWeight.SemiBold)
+                                      Text(String.format(Locale.US, "Ready in %02d:%02d", seconds / 60, seconds % 60),
+                                          color = SurfaceWarm.copy(alpha = 0.8f), fontSize = 12.sp)
+                                  }
+                                  TextButton(onClick = { seconds = 0 }) { Text("Dismiss", color = SurfaceWarm) }
+                              }
+                          }
+                      }
+                      LazyColumn(verticalArrangement = Arrangement.spacedBy(11.dp),
+                          contentPadding = PaddingValues(bottom = 24.dp)) {
+                          items(infusions, key = { it.name }) { recipe ->
+                              val isExpanded = expanded == recipe.name
+                              Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                                  colors = CardDefaults.cardColors(containerColor = SurfaceWarm)) {
+                                  Column(Modifier.animateContentSize(tween(260, easing = FastOutSlowInEasing))
+                                      .clickable { expanded = if (isExpanded) null else recipe.name }
+                                      .padding(17.dp)) {
+                                      Row(verticalAlignment = Alignment.CenterVertically) {
+                                          Box(Modifier.size(43.dp).clip(RoundedCornerShape(14.dp))
+                                              .background(SurfaceStone), contentAlignment = Alignment.Center) {
+                                              Icon(Icons.Rounded.Spa, null, tint = Moss, modifier = Modifier.size(22.dp))
+                                          }
+                                          Spacer(Modifier.width(12.dp))
+                                          Column(Modifier.weight(1f)) {
+                                              Text(recipe.name, fontSize = 17.sp, fontFamily = FontFamily.Serif,
+                                                  fontWeight = FontWeight.Medium, color = Ink)
+                                              Text(recipe.tamil, fontSize = 11.sp, color = WaterBlue)
+                                          }
+                                          Icon(Icons.Rounded.ChevronRight, null, tint = Muted,
+                                              modifier = Modifier.size(19.dp).then(if (isExpanded) Modifier.scale(-1f, 1f) else Modifier))
+                                      }
+                                      Spacer(Modifier.height(10.dp))
+                                      Text(recipe.note, fontSize = 12.sp, lineHeight = 17.sp, color = Muted)
+                                      AnimatedVisibility(isExpanded, enter = fadeIn(tween(180))) {
+                                          Column {
+                                              Spacer(Modifier.height(14.dp))
+                                              HorizontalDivider(color = Hairline)
+                                              Spacer(Modifier.height(12.dp))
+                                              Eyebrow("INGREDIENTS")
+                                              Spacer(Modifier.height(4.dp))
+                                              Text(recipe.ingredients, fontSize = 12.sp, lineHeight = 18.sp, color = Ink)
+                                              Spacer(Modifier.height(12.dp))
+                                              Eyebrow("METHOD")
+                                              Spacer(Modifier.height(4.dp))
+                                              Text(recipe.method, fontSize = 12.sp, lineHeight = 18.sp, color = Ink)
+                                              Spacer(Modifier.height(10.dp))
+                                              Text("Best time · ${recipe.bestTime}", fontSize = 11.sp,
+                                                  fontStyle = FontStyle.Italic, color = Moss)
+                                              Spacer(Modifier.height(12.dp))
+                                              Button(onClick = {
+                                                  active = recipe.name
+                                                  seconds = recipe.minutes * 60
+                                              }, modifier = Modifier.fillMaxWidth().height(46.dp),
+                                                  shape = RoundedCornerShape(14.dp),
+                                                  colors = ButtonDefaults.buttonColors(containerColor = Moss)) {
+                                                  Text("Start ${recipe.minutes}-minute timer")
+                                              }
+                                          }
+                                      }
+                                      if (!isExpanded) {
+                                          Spacer(Modifier.height(9.dp))
+                                          Text("VIEW RECIPE  ↗", fontSize = 9.sp, letterSpacing = 1.5.sp,
+                                              fontWeight = FontWeight.SemiBold, color = Moss)
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          """)
+          PYEOF
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          gradle --version
+          gradle --no-daemon --stacktrace assembleDebug
+          mkdir -p artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/Neer-Zen-v1.4.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Neer-Zen-APK
+          path: artifacts/Neer-Zen-v1.4.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="v1.4.${{ github.run_number }}"
+          gh release create "$TAG" artifacts/Neer-Zen-v1.4.apk \
+            --title "Neer Zen v1.4 · Build #${{ github.run_number }}" \
+            --notes "Neer Zen v1.4: ash-grey Japanese watercolor direction, layered Sumi-e Enso brush ring, mineral water-blue ripples, river-stone motif, and refined cohesive surfaces."
