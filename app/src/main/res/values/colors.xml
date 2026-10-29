@@ -1,0 +1,7 @@
+<resources>
+    <!-- Mirrors the Compose palette in ZenTheme.kt (launcher icon and window background only). -->
+    <color name="ash_canvas">#E8E9E6</color>
+    <color name="charcoal_ink">#252D2B</color>
+    <color name="river_blue">#779FA8</color>
+    <color name="pale_water">#C8DDE1</color>
+</resources>
