@@ -166,7 +166,9 @@ internal fun DrawScope.drawEnso(
     ink: Color,
     tailInk: Color,
     alpha: Float,
-    paper: Color = Zen.background
+    paper: Color = Zen.background,
+    tintStart: Float = 0.55f,
+    tintEnd: Float = 0.80f
 ) {
     if (progress <= 0f || alpha <= 0.001f) return
     val end = progress.coerceIn(0f, 1f) * b.n
@@ -184,8 +186,8 @@ internal fun DrawScope.drawEnso(
 
     val fill = Brush.sweepGradient(
         0f to ink,
-        0.55f to ink,
-        0.80f to tailInk,
+        tintStart to ink,
+        tintEnd to tailInk,
         1f to tailInk,
         center = c
     )

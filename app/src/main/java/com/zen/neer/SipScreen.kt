@@ -412,7 +412,10 @@ private fun WaterEnso(phase: RitualPhase, elapsed: () -> Long, modifier: Modifie
         // 1. Underlying brushwork: mineral grey, softly visible.
         drawEnso(brush, c, r, w, 1f, Palette.MineralGrey, Palette.MineralGrey, 0.5f * restAlpha)
         // 2. Completed portion: lighter charcoal ink that dries toward water blue.
-        drawEnso(brush, c, r, w * 0.9f, progress, Palette.CharcoalInk, completedTail, 0.78f * inkAlpha)
+        drawEnso(
+            brush, c, r, w * 0.9f, progress, Palette.CharcoalInk, completedTail, 0.7f * inkAlpha,
+            tintStart = 0.05f, tintEnd = 0.93f
+        )
 
         // 3. Water surface in the lower interior.
         val pool = Offset(c.x, c.y + r * 0.55f)
@@ -425,7 +428,7 @@ private fun WaterEnso(phase: RitualPhase, elapsed: () -> Long, modifier: Modifie
         }
 
         // 5. Droplet: forms below the countdown, falls vertically under gravity, lands at the pool.
-        val d = dim * 0.03f
+        val d = dim * 0.034f
         val formAt = Offset(c.x, c.y + r * 0.22f)
         val landAt = Offset(c.x, pool.y - d * 0.9f)
         if (phase == RitualPhase.Ready) {
