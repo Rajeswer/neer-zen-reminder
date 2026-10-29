@@ -198,6 +198,7 @@ private fun Ritual(
     val running = phase == RitualPhase.Hold || phase == RitualPhase.Sip || phase == RitualPhase.Still
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val ensoSize = minOf(maxWidth - 48.dp, 320.dp).coerceAtLeast(220.dp)
+        val stonesMaxWidth = maxWidth - 48.dp
         IllustrationBambooEdge(Modifier.align(Alignment.TopStart).size(96.dp, 120.dp), seed = 3L)
         IllustrationBambooEdge(Modifier.align(Alignment.TopEnd).size(84.dp, 110.dp), mirrored = true, seed = 8L)
         Column(
@@ -297,7 +298,7 @@ private fun Ritual(
                 count = sipsToday,
                 goal = dailyGoal,
                 modifier = Modifier
-                    .width((dailyGoal * 34).dp.coerceAtMost(maxWidth - 48.dp))
+                    .width((dailyGoal * 34).dp.coerceAtMost(stonesMaxWidth))
                     .height(30.dp)
             )
             Spacer(Modifier.height(Space.s8))
