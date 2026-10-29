@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -255,7 +256,6 @@ private fun InfusionCard(inf: Infusion, onClick: () -> Unit) {
             .fillMaxWidth()
             .clip(Radius.card)
             .clickable(onClickLabel = "Open recipe", role = Role.Button, onClick = onClick)
-            .then(Modifier)
             .heightIn(min = 96.dp)
             .padding(Space.s12),
         verticalAlignment = Alignment.CenterVertically
@@ -264,9 +264,9 @@ private fun InfusionCard(inf: Infusion, onClick: () -> Unit) {
             Modifier
                 .size(72.dp)
                 .clip(Radius.control)
-                .then(Modifier)
+                .background(Zen.surface)
         ) {
-            IllustrationInfusionGlass(inf.herb, Modifier.fillMaxSize())
+            IllustrationHerb(inf.herb, Modifier.fillMaxSize().padding(Space.s4))
         }
         Spacer(Modifier.width(Space.s16))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s2)) {
@@ -298,8 +298,7 @@ private fun InfusionDetail(inf: Infusion, onBack: () -> Unit, onStartSteep: () -
             onNavigate = onBack
         )
         Box(Modifier.fillMaxWidth().height(220.dp)) {
-            IllustrationBambooEdge(Modifier.align(Alignment.TopEnd).size(110.dp, 140.dp), mirrored = true, seed = 21L)
-            IllustrationInfusionGlass(inf.herb, Modifier.align(Alignment.Center).size(210.dp))
+            IllustrationHerb(inf.herb, Modifier.align(Alignment.Center).size(220.dp))
         }
         Column(Modifier.padding(horizontal = Space.screenInset)) {
             Text(

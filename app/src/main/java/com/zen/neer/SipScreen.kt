@@ -50,7 +50,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.lerp
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -213,22 +215,21 @@ private fun Ritual(
         val ensoSize = minOf(maxWidth - 40.dp, 320.dp).coerceAtLeast(232.dp)
         val stonesMaxWidth = maxWidth - 64.dp
 
-        // Asymmetric, low-weight botanical framing at the edges, clear of text and controls.
-        IllustrationBambooEdge(
-            Modifier.align(Alignment.TopStart).size(92.dp, 116.dp),
-            seed = 3L,
-            leaves = 5,
-            strength = 0.8f
-        )
-        IllustrationBambooEdge(
+        // The strongest landscape in the app: misty ranges, still water, rocks and a pine,
+        // sitting behind the lower half of the Enso. Its waterline meets the Enso's water,
+        // and it ends at the Enso's base so the text below stays on clean paper.
+        IllustrationLandscape(
             Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = ensoSize * 0.7f)
-                .size(52.dp, 68.dp),
+                .align(Alignment.TopCenter)
+                .padding(top = Space.s4 + ensoSize * 0.18f)
+                .fillMaxWidth()
+                .height(ensoSize * 0.84f)
+        )
+        // A single bamboo spray balances the pine on the opposite edge.
+        IllustrationBambooEdge(
+            Modifier.align(Alignment.TopEnd).size(78.dp, 126.dp),
             mirrored = true,
-            seed = 17L,
-            leaves = 3,
-            strength = 0.65f
+            strength = 0.75f
         )
 
         Column(
@@ -382,15 +383,17 @@ private fun EnsoCentre(phase: RitualPhase, secondsLeft: () -> Int, modifier: Mod
 
 /**
  * The water and the Enso. Droplets fall straight down the centre into the water; each landing
- * sends out one ripple and advances the brushwork. All of it is read from [elapsed] at draw
- * time, so this composable holds no session logic and redraws without recomposing.
+ * sends out one ripple and reveals more of the painted brush stroke. All of it is read from
+ * [elapsed] at draw time, so this composable holds no session logic and redraws without
+ * recomposing.
  */
 @Composable
 private fun WaterEnso(phase: RitualPhase, elapsed: () -> Long, modifier: Modifier) {
-    val brush = remember { EnsoBrush(21L) }
+    val enso = ImageBitmap.imageResource(R.drawable.illustration_enso_primary)
+    val water = ImageBitmap.imageResource(R.drawable.illustration_water_surface)
     val reduced = LocalReducedMotion.current
     val restAlpha by animateFloatAsState(
-        targetValue = if (phase == RitualPhase.Ready) 1f else 0.7f,
+        targetValue = if (phase == RitualPhase.Ready) 1f else 0.75f,
         animationSpec = tween(Motion.fadeMs),
         label = "enso-rest"
     )
@@ -399,28 +402,23 @@ private fun WaterEnso(phase: RitualPhase, elapsed: () -> Long, modifier: Modifie
         animationSpec = tween(Motion.fadeMs),
         label = "enso-ink"
     )
-    val completedTail = remember { lerp(Palette.CharcoalInk, Palette.RiverBlue, 0.7f) }
 
     Canvas(modifier.clearAndSetSemantics { }) {
         val dim = size.minDimension
-        val w = dim * 0.042f
-        val r = dim * 0.5f - w * 1.4f
         val c = center
+        val r = dim * ENSO_ART_RADIUS
         val e = elapsed()
         val progress = WaterRitual.ensoProgress(e, reduced)
 
-        // 1. Underlying brushwork: mineral grey, softly visible.
-        drawEnso(brush, c, r, w, 1f, Palette.MineralGrey, Palette.MineralGrey, 0.5f * restAlpha)
-        // 2. Completed portion: lighter charcoal ink that dries toward water blue.
-        drawEnso(
-            brush, c, r, w * 0.9f, progress, Palette.CharcoalInk, completedTail, 0.7f * inkAlpha,
-            tintStart = 0.05f, tintEnd = 0.93f
-        )
+        // 1. Underlying brushwork: the whole stroke in pale mineral grey, softly visible.
+        drawArtCentered(enso, c, dim, alpha = 0.34f * restAlpha, tint = Palette.MineralGrey)
+        // 2. Completed portion: the painted charcoal stroke revealed along its own direction.
+        drawEnsoReveal(enso, c, dim, progress, alpha = 0.86f * inkAlpha)
 
-        // 3. Water surface in the lower interior.
-        val pool = Offset(c.x, c.y + r * 0.55f)
-        val halfWidth = r * 0.6f
-        drawWaterSurface(pool, halfWidth)
+        // 3. Still water in the lower interior (painted strokes, never animating on its own).
+        val pool = Offset(c.x, c.y + r * 0.58f)
+        val halfWidth = r * 0.66f
+        drawArtCentered(water, Offset(pool.x, pool.y + halfWidth * 0.06f), halfWidth * 2.1f, alpha = 0.9f)
 
         // 4. Ripple from the latest landing only.
         WaterRitual.ripple(e)?.let { t ->
@@ -429,10 +427,10 @@ private fun WaterEnso(phase: RitualPhase, elapsed: () -> Long, modifier: Modifie
 
         // 5. Droplet: forms below the countdown, falls vertically under gravity, lands at the pool.
         val d = dim * 0.034f
-        val formAt = Offset(c.x, c.y + r * 0.22f)
+        val formAt = Offset(c.x, c.y + r * 0.24f)
         val landAt = Offset(c.x, pool.y - d * 0.9f)
         if (phase == RitualPhase.Ready) {
-            drawPaintedDroplet(formAt, d, alpha = 0.7f)
+            drawPaintedDroplet(formAt, d, alpha = 0.75f)
         } else {
             WaterRitual.droplet(e)?.let { frame ->
                 val fall = if (reduced) 0f else frame.fall
@@ -464,13 +462,12 @@ private fun WellDone(onDone: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(Modifier.fillMaxWidth().height(artHeight)) {
-                IllustrationMountainMist(Modifier.fillMaxSize(), seed = 9L)
+                IllustrationLandscape(Modifier.fillMaxSize())
                 Canvas(Modifier.fillMaxSize().clearAndSetSemantics { }) {
-                    val pool = Offset(size.width / 2f, size.height * 0.78f)
-                    val d = size.minDimension * 0.08f
+                    val pool = Offset(size.width / 2f, size.height * 0.80f)
+                    val d = size.minDimension * 0.07f
                     val f = fall.value
-                    val start = Offset(pool.x, size.height * 0.2f)
-                    drawWaterSurface(pool, size.width * 0.32f)
+                    val start = Offset(pool.x, size.height * 0.16f)
                     val rp = ripple.value
                     if (rp > 0f && rp < 1f) drawLandingRipple(pool, size.width * 0.34f, rp)
                     if (f < 1f) drawPaintedDroplet(lerp(start, pool, f * f), d, alpha = 1f - ((f - 0.85f) / 0.15f).coerceIn(0f, 1f))

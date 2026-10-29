@@ -68,3 +68,61 @@ jobs:
           body: Debug build of Neer Zen 2.1 from ${{ github.sha }}. Download the .apk below to install.
           files: dist/*.apk
           make_latest: true
+
+  screens:
+    # Renders the real app on an emulator and publishes screenshots to the ci-screens
+    # branch for visual review. Never blocks the APK build or release.
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Neer-Zen-APK
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Capture screens on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash tools/capture-screens.sh "$(ls apk/*.apk | head -n 1)" screens
+
+      - name: Report
+        if: always()
+        run: |
+          cat screens/report.txt || true
+          if grep -q '^FAIL' screens/report.txt 2>/dev/null; then
+            echo "::warning title=Screen checks::$(grep '^FAIL' screens/report.txt | tr '\n' ';')"
+          fi
+
+      - name: Publish screenshots to ci-screens branch
+        if: always()
+        run: |
+          mkdir -p screens
+          cd screens
+          echo "Screenshots of ${{ github.sha }} (run ${{ github.run_number }})" > README.md
+          git init -q
+          git checkout -q -b ci-screens
+          git config user.name "neer-zen-ci"
+          git config user.email "neer-zen-ci@users.noreply.github.com"
+          git add -A
+          git commit -qm "Screenshots for ${{ github.sha }}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" ci-screens
+

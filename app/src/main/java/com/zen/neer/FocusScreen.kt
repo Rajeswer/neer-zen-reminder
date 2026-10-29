@@ -249,8 +249,6 @@ private fun FocusArt(progress: () -> Float, flowing: Boolean, modifier: Modifier
             drawRiverStone(Offset(bowlCenter.x + bowlW * 0.60f, bowlCenter.y + bowlW * 0.33f), bowlW * 0.12f, 5L, Palette.CharcoalInk)
             drawRiverStone(Offset(bowlCenter.x + bowlW * 0.78f, bowlCenter.y + bowlW * 0.36f), bowlW * 0.06f, 8L, Palette.MineralGrey)
             drawStoneBowl(bowlCenter, bowlW, level = 0.25f + 0.75f * p, ripple = flow?.value)
-            drawLeaf(Offset(bowlCenter.x + bowlW * 0.42f, bowlCenter.y - bowlW * 0.02f), -40f, bowlW * 0.30f, bowlW * 0.06f, Palette.MutedSage, 0.75f)
-            drawLeaf(Offset(bowlCenter.x + bowlW * 0.42f, bowlCenter.y - bowlW * 0.02f), -5f, bowlW * 0.24f, bowlW * 0.05f, Palette.MutedSage, 0.6f)
         }
     }
 }

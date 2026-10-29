@@ -302,15 +302,13 @@ private fun Splash(onSkip: () -> Unit) {
             .ashCanvas(seed = 7L)
             .clickable(onClickLabel = "Skip", onClick = onSkip)
     ) {
-        IllustrationMountainMist(
+        IllustrationLandscape(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(0.55f),
-            seed = 6L,
-            strength = 1.6f
+                .fillMaxHeight(0.62f)
         )
-        IllustrationBambooEdge(Modifier.align(Alignment.TopStart).size(150.dp, 190.dp), seed = 13L)
+        IllustrationBambooEdge(Modifier.align(Alignment.TopEnd).size(120.dp, 194.dp), mirrored = true)
         Column(
             Modifier
                 .align(Alignment.Center)

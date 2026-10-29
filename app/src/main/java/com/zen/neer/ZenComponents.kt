@@ -40,6 +40,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.ImageShader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.Shape
@@ -67,33 +72,19 @@ internal fun formatClock(totalSeconds: Int): String {
     else String.format(Locale.US, "%02d:%02d", m, s)
 }
 
-/** Ash canvas with a faint, cached pigment-and-fibre grain. No white or cream wash. */
-internal fun Modifier.ashCanvas(seed: Long = 11L): Modifier = this.drawWithCache {
-    val rnd = java.util.Random(seed)
-    val w = size.width
-    val h = size.height
-    val count = ((w * h) / 900f).toInt().coerceIn(150, 4000)
-    val dark = ArrayList<Offset>(count)
-    val light = ArrayList<Offset>(count / 2)
-    repeat(count) { dark.add(Offset(rnd.nextFloat() * w, rnd.nextFloat() * h)) }
-    repeat(count / 2) { light.add(Offset(rnd.nextFloat() * w, rnd.nextFloat() * h)) }
-    val fibres = Path()
-    repeat((count / 110).coerceAtLeast(6)) {
-        val x = rnd.nextFloat() * w
-        val y = rnd.nextFloat() * h
-        val len = 6f + rnd.nextFloat() * 22f
-        val a = rnd.nextFloat() * 6.2832f
-        fibres.moveTo(x, y)
-        fibres.quadraticBezierTo(
-            x + cos(a) * len * 0.5f + rnd.nextFloat() * 4f, y + sin(a) * len * 0.5f,
-            x + cos(a) * len, y + sin(a) * len
-        )
-    }
-    onDrawBehind {
-        drawRect(Zen.background)
-        drawPoints(dark, PointMode.Points, Palette.SumiInk, strokeWidth = 1.2f, cap = StrokeCap.Round, alpha = 0.045f)
-        drawPoints(light, PointMode.Points, Palette.StoneSurface, strokeWidth = 1.5f, cap = StrokeCap.Round, alpha = 0.6f)
-        drawPath(fibres, Palette.SumiInk, alpha = 0.035f, style = Stroke(width = 0.8f))
+/**
+ * Ash canvas with tiled rice-paper grain (texture_paper): soft mottling, fibres and
+ * sparse pigment. [seed] is kept for call-site compatibility.
+ */
+@Composable
+internal fun Modifier.ashCanvas(seed: Long = 11L): Modifier {
+    val paper = ImageBitmap.imageResource(R.drawable.texture_paper)
+    return this.drawWithCache {
+        val grain = ShaderBrush(ImageShader(paper, TileMode.Repeated, TileMode.Repeated))
+        onDrawBehind {
+            drawRect(Zen.background)
+            drawRect(grain)
+        }
     }
 }
 

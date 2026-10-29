@@ -323,64 +323,46 @@ internal fun DrawScope.drawWaterSurface(center: Offset, halfWidth: Float, alpha:
     }
 }
 
-/** The ripple a single droplet makes on landing. [t] 0..1 over Motion.rippleMs. */
+/**
+ * The ripple a single droplet makes on landing, drawn as broken brush arcs rather than
+ * clean ellipses. [t] 0..1 over Motion.rippleMs.
+ */
 internal fun DrawScope.drawLandingRipple(center: Offset, maxRadius: Float, t: Float) {
     if (t <= 0f || t >= 1f) return
-    val strokeW = 1.2.dp.toPx()
+    val base = 1.4.dp.toPx()
     for (j in 0 until 2) {
         val u = ((t - j * 0.22f) / 0.78f).coerceIn(0f, 1f)
         if (u <= 0f || u >= 1f) continue
         val eased = 1f - (1f - u) * (1f - u)
         val rx = maxRadius * (0.08f + 0.92f * eased)
-        drawOval(
-            Palette.RiverBlue,
-            topLeft = Offset(center.x - rx, center.y - rx * 0.22f),
-            size = Size(rx * 2f, rx * 0.44f),
-            alpha = (1f - u) * 0.75f,
-            style = Stroke(width = strokeW)
-        )
+        val ry = rx * 0.22f
+        val fade = 1f - u
+        // three uneven arcs per ring, with gaps, thicker toward the viewer
+        for (k in 0 until 3) {
+            val jitter = ((j * 37 + k * 53) % 17) - 8f
+            val start = k * 120f + jitter + 10f
+            val sweep = 78f + ((j * 11 + k * 29) % 23)
+            val front = if (start in 0f..180f) 1.25f else 0.8f
+            drawArc(
+                if (k == 1) Palette.DeepStone else Palette.RiverBlue,
+                startAngle = start,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = Offset(center.x - rx, center.y - ry),
+                size = Size(rx * 2f, ry * 2f),
+                alpha = fade * 0.8f,
+                style = Stroke(width = base * front * (1.2f - 0.5f * u), cap = StrokeCap.Round)
+            )
+        }
     }
 }
 
 // ---------------------------------------------------------------- Mountains
 
-/** Layered, low-contrast mountain silhouettes fading into mist at their base. Decorative. */
+/** Pale, misty ink-wash ranges (painted asset). [seed] is kept for call-site compatibility. */
 @Composable
 internal fun IllustrationMountainMist(modifier: Modifier = Modifier, seed: Long = 5L, strength: Float = 1f) {
-    val ridges = remember(seed) {
-        val r = java.util.Random(seed)
-        List(3) { layer -> FloatArray(9) { 0.15f + r.nextFloat() * (0.55f - layer * 0.12f) } }
-    }
-    Canvas(modifier.clearAndSetSemantics { }) {
-        val w = size.width
-        val h = size.height
-        val tones = listOf(Palette.MineralGrey, Palette.DeepStone, Palette.MutedSage)
-        val alphas = listOf(0.16f, 0.14f, 0.10f)
-        ridges.forEachIndexed { layer, peaks ->
-            val baseY = h * (0.55f + layer * 0.15f)
-            val path = Path()
-            path.moveTo(0f, h)
-            path.lineTo(0f, baseY - peaks[0] * h * 0.5f)
-            val step = w / (peaks.size - 1)
-            for (i in 1 until peaks.size) {
-                val x0 = step * (i - 1)
-                val x1 = step * i
-                val y0 = baseY - peaks[i - 1] * h * 0.5f
-                val y1 = baseY - peaks[i] * h * 0.5f
-                val ctrlY = min(y0, y1) - h * 0.05f * ((i + layer) % 2)
-                path.cubicTo(x0 + step * 0.45f, ctrlY, x1 - step * 0.45f, ctrlY, x1, y1)
-            }
-            path.lineTo(w, h)
-            path.close()
-            val mist = Brush.verticalGradient(
-                0f to tones[layer].copy(alpha = alphas[layer] * strength),
-                1f to tones[layer].copy(alpha = 0f),
-                startY = baseY - h * 0.35f,
-                endY = h
-            )
-            drawPath(path, mist)
-        }
-    }
+    InkArtwork(R.drawable.illustration_mountain_mist, modifier, alpha = (0.9f * strength).coerceIn(0f, 1f))
 }
 
 // ---------------------------------------------------------------- Bamboo
@@ -414,8 +396,8 @@ internal fun DrawScope.drawLeaf(at: Offset, angle: Float, len: Float, wid: Float
 }
 
 /**
- * Sparse brush-pen bamboo for the edge of a composition. Static (no idle motion),
- * low opacity, alternating mineral grey and muted sage. [strength] scales the ink.
+ * Painted edge bamboo (one leaning stalk with two leaf sprays). Static; [strength] scales
+ * the ink. [seed] and [leaves] are kept for call-site compatibility.
  */
 @Composable
 internal fun IllustrationBambooEdge(
@@ -425,31 +407,14 @@ internal fun IllustrationBambooEdge(
     leaves: Int = 6,
     strength: Float = 1f
 ) {
-    Canvas(modifier.clearAndSetSemantics { }) {
-        val w = size.width
-        val h = size.height
-        withTransform({ if (mirrored) scale(-1f, 1f, pivot = center) }) {
-            val rnd = java.util.Random(seed)
-            val p0 = Offset(-w * 0.05f, h * 0.02f)
-            val p1 = Offset(w * 0.28f, h * 0.10f)
-            val p2 = Offset(w * 0.46f, h * 0.32f)
-            val p3 = Offset(w * 0.60f, h * 0.58f)
-            val stem = Path().apply {
-                moveTo(p0.x, p0.y)
-                cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y)
-            }
-            drawPath(stem, Palette.MineralGrey, alpha = 0.55f * strength, style = Stroke(width = w * 0.010f, cap = StrokeCap.Round))
-            for (i in 0 until leaves) {
-                val t = 0.16f + i * (0.78f / leaves.coerceAtLeast(1))
-                val at = bezier(p0, p1, p2, p3, t.coerceAtMost(1f))
-                val side = if (i % 2 == 0) 1f else -1f
-                val angle = 62f + side * (22f + rnd.nextFloat() * 20f)
-                val len = w * (0.28f + rnd.nextFloat() * 0.16f) * (1f - i * 0.05f)
-                val tone = if (i % 3 == 1) Palette.MineralGrey else Palette.MutedSage
-                drawLeaf(at, angle, len, len * 0.13f, tone, (0.30f + rnd.nextFloat() * 0.15f) * strength)
-            }
-        }
-    }
+    InkArtwork(
+        R.drawable.illustration_bamboo_ink,
+        modifier,
+        alpha = (0.85f * strength).coerceIn(0f, 1f),
+        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+        alignment = if (mirrored) androidx.compose.ui.Alignment.TopEnd else androidx.compose.ui.Alignment.TopStart,
+        mirrored = mirrored
+    )
 }
 
 // ---------------------------------------------------------------- River stones
