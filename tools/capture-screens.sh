@@ -68,9 +68,10 @@ sleep 0.5; shot 00-splash
 sleep 2.8; shot 01-sip-ready
 expect "0 of 5 mindful sips today"
 tap "Begin mindful sip"
-sleep 1.6; shot 02-sip-droplet-falling
-sleep 0.45; shot 03-sip-droplet-landed
-sleep 4.2; shot 04-sip-midway
+# Burst through the first two beats to catch a droplet forming, falling and landing.
+sleep 0.9
+for i in $(seq -w 1 14); do shot "02-burst-$i"; done
+sleep 2.2; shot 04-sip-midway
 sleep 7.2; shot 05-sip-well-done
 expect "Well done"
 tap "Done"
