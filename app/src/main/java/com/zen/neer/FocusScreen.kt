@@ -44,7 +44,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -57,8 +59,8 @@ import kotlin.math.sin
 // Shared geometry for the ring + bowl composition (fractions of the art box width).
 private const val RING_CY = 0.40f
 private const val RING_R = 0.33f
-private const val BOWL_CY = 0.80f
-private const val BOWL_W = 0.64f
+private const val BOWL_CY = 0.84f
+private const val BOWL_W = 0.70f
 private const val ART_ASPECT = 1.12f
 
 @Composable
@@ -215,6 +217,7 @@ private fun FocusArt(progress: () -> Float, flowing: Boolean, modifier: Modifier
     } else {
         null
     }
+    val bowl = ImageBitmap.imageResource(R.drawable.illustration_stone_bowl)
     Box(modifier) {
         IllustrationMountainMist(
             Modifier
@@ -243,18 +246,14 @@ private fun FocusArt(progress: () -> Float, flowing: Boolean, modifier: Modifier
                 val a = Math.toRadians(-90.0 + 360.0 * p)
                 drawCircle(Zen.progress, radius = 5.dp.toPx(), center = Offset(c.x + (cos(a) * r).toFloat(), c.y + (sin(a) * r).toFloat()))
             }
-            val bowlCenter = Offset(w / 2f, w * BOWL_CY)
-            val bowlW = w * BOWL_W
-            drawRiverStone(Offset(bowlCenter.x - bowlW * 0.62f, bowlCenter.y + bowlW * 0.30f), bowlW * 0.09f, 3L, Palette.DeepStone)
-            drawRiverStone(Offset(bowlCenter.x + bowlW * 0.60f, bowlCenter.y + bowlW * 0.33f), bowlW * 0.12f, 5L, Palette.CharcoalInk)
-            drawRiverStone(Offset(bowlCenter.x + bowlW * 0.78f, bowlCenter.y + bowlW * 0.36f), bowlW * 0.06f, 8L, Palette.MineralGrey)
-            drawStoneBowl(bowlCenter, bowlW, level = 0.25f + 0.75f * p, ripple = flow?.value)
+            drawInkBowl(bowl, Offset(w / 2f, w * BOWL_CY), w * BOWL_W, level = 0.25f + 0.75f * p, ripple = flow?.value)
         }
     }
 }
 
 @Composable
 private fun MindfulBreak(artWidth: Dp, onLog: () -> Unit, onSkip: () -> Unit) {
+    val bowl = ImageBitmap.imageResource(R.drawable.illustration_stone_bowl)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
@@ -263,7 +262,7 @@ private fun MindfulBreak(artWidth: Dp, onLog: () -> Unit, onSkip: () -> Unit) {
         ) {
             IllustrationMountainMist(Modifier.fillMaxSize(), seed = 12L)
             Canvas(Modifier.fillMaxSize()) {
-                drawStoneBowl(Offset(size.width / 2f, size.height * 0.55f), size.width * 0.56f, level = 1f, ripple = null)
+                drawInkBowl(bowl, Offset(size.width / 2f, size.height * 0.62f), size.width * 0.6f, level = 1f, ripple = null)
             }
         }
         Spacer(Modifier.height(Space.s16))

@@ -105,6 +105,11 @@ tap "Infusions"
 sleep 1.5; shot 11-infusions
 tap "Jeera Water"
 sleep 1.5; shot 12-infusion-detail
+# The steep timer button sits below the fold on the recipe page.
+adb shell input swipe 540 1900 540 700 400
+sleep 0.8
+adb shell input swipe 540 1900 540 700 400
+sleep 0.8; shot 12b-infusion-detail-lower
 tap "Start 5-min steep timer"
 sleep 2.5; shot 13-steep
 # Back dismisses the steep timer (the countdown keeps uiautomator from settling).

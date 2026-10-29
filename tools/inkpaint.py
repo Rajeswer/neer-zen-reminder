@@ -531,17 +531,17 @@ def umbellifer(c, rng, scale, rays, feather, seed_kind):
     base = (w * 0.42, h * 0.98)
     top = (w * 0.48, h * 0.30)
     stem = curve(base, (w * 0.40, h * 0.7), (w * 0.52, h * 0.5), top, 60)
-    c.paint(bristle_stroke(h, w, stem, taper(60, 0.02, 0.3, 0.4) * 4.2 * scale, rng, bristles=8, load=0.9, dryness=0.6, blur=0.7), CHARCOAL)
+    c.paint(bristle_stroke(h, w, stem, taper(60, 0.02, 0.3, 0.4) * 7.0 * scale, rng, bristles=10, load=0.9, dryness=0.6, blur=0.7), CHARCOAL)
     for i in range(rays):
         a = math.radians(-90 - 60 + 120 * i / max(1, rays - 1) + (rng.random() - 0.5) * 8)
         L = h * 0.17 * scale * (0.85 + 0.3 * rng.random())
         end = (top[0] + math.cos(a) * L, top[1] + math.sin(a) * L)
         ray = curve(top, (top[0] + math.cos(a) * L * 0.4, top[1] + math.sin(a) * L * 0.5), end, end, 20)
-        c.paint(bristle_stroke(h, w, ray, np.full(20, 1.6 * scale), rng, bristles=4, load=0.8, dryness=0.6, blur=0.6), CHARCOAL)
+        c.paint(bristle_stroke(h, w, ray, np.full(20, 2.8 * scale), rng, bristles=5, load=0.8, dryness=0.6, blur=0.6), CHARCOAL)
         for k in range(5):
             dx, dy = (rng.random() - 0.5) * 10 * scale, (rng.random() - 0.8) * 8 * scale
             yy, xx = np.ogrid[0:h, 0:w]
-            dot = np.exp(-(((xx - end[0] - dx) ** 2 + (yy - end[1] - dy) ** 2) / (2 * (1.8 * scale) ** 2)))
+            dot = np.exp(-(((xx - end[0] - dx) ** 2 + (yy - end[1] - dy) ** 2) / (2 * (2.8 * scale) ** 2)))
             c.paint(dot * 0.85, SUMI)
     # feathery thread leaves from two nodes
     for frac, side in ((0.55, -1), (0.75, 1)):
@@ -551,8 +551,8 @@ def umbellifer(c, rng, scale, rays, feather, seed_kind):
             L = h * (0.10 + 0.06 * rng.random()) * scale
             end = (node[0] + math.cos(a) * L, node[1] + math.sin(a) * L)
             mid = ((node[0] + end[0]) / 2, (node[1] + end[1]) / 2 - 6)
-            c.paint(bristle_stroke(h, w, curve(node, mid, mid, end, 16), taper(16, 0.02, 0.7, 0.2) * 1.8 * scale, rng,
-                                   bristles=3, load=0.75, dryness=0.9, blur=0.6), DEEP_SAGE)
+            c.paint(bristle_stroke(h, w, curve(node, mid, mid, end, 16), taper(16, 0.02, 0.7, 0.2) * 3.0 * scale, rng,
+                                   bristles=4, load=0.75, dryness=0.9, blur=0.6), DEEP_SAGE)
     seeds(c, rng, seed_kind, scale)
 
 
@@ -564,8 +564,8 @@ def seeds(c, rng, kind, scale):
         sx = w * (0.62 + rng.random() * 0.28)
         sy = h * (0.80 + rng.random() * 0.14)
         a = rng.random() * 360
-        L = {"cumin": 18, "ajwain": 9, "fennel": 22, "fenu": 10}[kind] * scale
-        W = {"cumin": 4.5, "ajwain": 4.5, "fennel": 5.5, "fenu": 7.0}[kind] * scale
+        L = {"cumin": 26, "ajwain": 13, "fennel": 30, "fenu": 13}[kind] * scale
+        W = {"cumin": 7.0, "ajwain": 7.0, "fennel": 8.0, "fenu": 9.0}[kind] * scale
         p0 = (sx - math.cos(math.radians(a)) * L / 2, sy - math.sin(math.radians(a)) * L / 2)
         p3 = (sx + math.cos(math.radians(a)) * L / 2, sy + math.sin(math.radians(a)) * L / 2)
         pts = curve(p0, p0, p3, p3, 12)
@@ -578,12 +578,12 @@ def fenugreek(c, rng):
     h, w = c.h, c.w
     base, top = (w * 0.40, h * 0.98), (w * 0.52, h * 0.18)
     stem = curve(base, (w * 0.36, h * 0.65), (w * 0.56, h * 0.45), top, 60)
-    c.paint(bristle_stroke(h, w, stem, taper(60, 0.02, 0.3, 0.4) * 4.0, rng, bristles=8, load=0.9, dryness=0.6, blur=0.7), CHARCOAL)
+    c.paint(bristle_stroke(h, w, stem, taper(60, 0.02, 0.3, 0.4) * 7.0, rng, bristles=10, load=0.9, dryness=0.6, blur=0.7), CHARCOAL)
     for frac, side in ((0.35, 1), (0.55, -1), (0.78, 1)):
         node = stem[int(frac * 59)]
         for k in (-1, 0, 1):
             a = (-20 if side > 0 else 200) + k * 38 * side
-            c.paint(leaf_stroke(h, w, tuple(node), a, h * 0.11, h * 0.045, rng, bristles=12, load=0.7) * 0.85, MUTED_SAGE)
+            c.paint(leaf_stroke(h, w, tuple(node), a, h * 0.13, h * 0.06, rng, bristles=12, load=0.9) * 0.95, DEEP_SAGE)
     # slender beaked pods
     for frac in (0.45, 0.66):
         node = stem[int(frac * 59)]
@@ -601,7 +601,7 @@ def vetiver(c, rng):
         L = h * (0.48 + rng.random() * 0.2)
         end = (base[0] + lean * L * 1.4, base[1] - L)
         blade = curve((base[0] + (k - 4) * 3, base[1]), (base[0] + lean * L * 0.3, base[1] - L * 0.5), (base[0] + lean * L * 1.0, base[1] - L * 0.85), end, 50)
-        c.paint(bristle_stroke(h, w, blade, taper(50, 0.02, 0.85, 0.05) * 6.0, rng, bristles=8, load=0.85, dryness=0.7, dry_start=0.3, blur=0.7),
+        c.paint(bristle_stroke(h, w, blade, taper(50, 0.02, 0.85, 0.05) * 9.0, rng, bristles=10, load=0.85, dryness=0.7, dry_start=0.3, blur=0.7),
                 DEEP_SAGE if k % 3 else STONE_MID)
     # roots
     for k in range(12):
@@ -609,7 +609,7 @@ def vetiver(c, rng):
         L = h * (0.12 + rng.random() * 0.12)
         end = (sx + (rng.random() - 0.5) * 70, base[1] + L)
         root = curve((sx, base[1]), (sx + (rng.random() - 0.5) * 40, base[1] + L * 0.4), (end[0] + (rng.random() - 0.5) * 20, base[1] + L * 0.8), end, 30)
-        c.paint(bristle_stroke(h, w, root, taper(30, 0.02, 0.7, 0.1) * 1.8, rng, bristles=3, load=0.8, dryness=0.8, blur=0.6), CHARCOAL)
+        c.paint(bristle_stroke(h, w, root, taper(30, 0.02, 0.7, 0.1) * 3.0, rng, bristles=4, load=0.8, dryness=0.8, blur=0.6), CHARCOAL)
 
 
 def asset_botanicals(out):
@@ -627,14 +627,71 @@ def asset_botanicals(out):
         c.image().save(os.path.join(out, name), "WEBP", quality=88, method=6)
 
 
+def asset_stone_bowl(out):
+    """
+    Focus vessel: a hand-cut stone basin, side view, in ink wash. The opening is left as a
+    dark recess; the app paints the water inside it so the level can rise with focus time.
+    Geometry (fractions of image width W; image height = 0.5833 W):
+      opening ellipse centre (0.5 W, 0.1833 W), radii (0.392 W, 0.0833 W)
+    """
+    rng = np.random.default_rng(808)
+    w, h = 1200, 700
+    c = Canvas(h, w)
+    cx, rim_y = w / 2, 220.0
+    rx_o, ry_o = 520.0, 120.0
+    rx_i, ry_i = 470.0, 100.0
+    base_y = 610.0
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    # ground shadow wash
+    sh = np.exp(-(((xx - cx) / (rx_o * 0.72)) ** 2) - (((yy - base_y + 4) / 18) ** 2))
+    c.paint(sh * 0.35 * (0.7 + 0.5 * fbm(h, w, 60, 3, rng, aniso=(0.3, 3.0))), STONE_MID)
+    # body: below the rim, bowl-shaped profile
+    u = np.clip((xx - cx) / rx_o, -1.5, 1.5)
+    bottom = rim_y + (base_y - rim_y) * np.clip(1 - u ** 2, 0, 1) ** 0.42
+    body = ((yy >= rim_y) & (yy <= bottom) & (np.abs(u) <= 1)).astype(np.float32)
+    rimmask = (((xx - cx) / rx_o) ** 2 + ((yy - rim_y) / ry_o) ** 2 <= 1).astype(np.float32)
+    stone = np.clip(body + rimmask, 0, 1)
+    stone = ndimage.gaussian_filter(stone, 1.0)
+    # rounded light: brightest at the upper right shoulder, falling off around the curve
+    lx, ly = cx + rx_o * 0.45, rim_y + 60
+    lit = np.exp(-(((xx - lx) / (rx_o * 0.75)) ** 2) - (((yy - ly) / ((base_y - rim_y) * 0.9)) ** 2))
+    shade = np.clip(0.85 - 0.75 * lit + 0.25 * (fbm(h, w, 220, 3, rng) - 0.5), 0, 1)
+    tone = shade + 0.22 * (fbm(h, w, 50, 3, rng) - 0.5) + 0.12 * (fbm(h, w, 3, 2, rng, aniso=(1.0, 6.0)) - 0.5)
+    layers = np.where(tone > 0.66, 0.95, np.where(tone > 0.42, 0.7, 0.4))
+    c.paint(ndimage.gaussian_filter(layers * stone, 0.9), CHARCOAL)
+    # horizontal chisel marks across the body (dry brush)
+    for _ in range(18):
+        y0 = rim_y + 40 + rng.random() * (base_y - rim_y - 80)
+        span = rx_o * (0.4 + rng.random() * 0.6)
+        x0 = cx - rx_o * 0.95 + rng.random() * (rx_o * 1.9 - span)
+        pts = curve((x0, y0), (x0 + span * 0.3, y0 + 4), (x0 + span * 0.7, y0 + 6), (x0 + span, y0 + 2), 30)
+        st = ribbon_stroke(h, w, pts, taper(30, 0.1, 0.4, 0.2) * 7, rng, load=0.8, dry_start=0.0, dryness=1.4,
+                           edge_dark=0.2, rough=0.2, streak_rows=12, streak_len=8.0)
+        c.paint(st * body * 0.7, SUMI)
+    # rim top surface: a lighter worn band
+    ring = ((((xx - cx) / rx_o) ** 2 + ((yy - rim_y) / ry_o) ** 2) <= 1) & ((((xx - cx) / rx_i) ** 2 + ((yy - rim_y) / ry_i) ** 2) > 1)
+    c.erase(ndimage.gaussian_filter(ring.astype(np.float32), 1.2) * (0.35 + 0.25 * fbm(h, w, 40, 3, rng)))
+    c.paint(ndimage.gaussian_filter(ring.astype(np.float32), 1.0) * 0.30 * (0.6 + 0.8 * fbm(h, w, 20, 3, rng)), DEEP_STONE)
+    # dark recess
+    hole = ((((xx - cx) / rx_i) ** 2 + ((yy - rim_y) / ry_i) ** 2) <= 1).astype(np.float32)
+    c.paint(ndimage.gaussian_filter(hole, 1.0) * 0.92, SUMI)
+    # dry-brush contour of the outer rim and silhouette
+    edge = np.abs(np.sqrt(((xx - cx) / rx_o) ** 2 + ((yy - rim_y) / ry_o) ** 2) - 1) < 0.012
+    breaks = np.clip((fbm(h, w, 30, 3, rng) - 0.3) / 0.25, 0, 1)
+    c.paint(ndimage.gaussian_filter(edge.astype(np.float32), 1.0) * breaks * 0.9, SUMI)
+    c.image().save(os.path.join(out, "illustration_stone_bowl.webp"), "WEBP", quality=86, method=6)
+
+
 if __name__ == "__main__":
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
-    which = sys.argv[2:] or ["paper", "enso", "water", "bamboo", "mist", "landscape", "botanicals"]
+    which = sys.argv[2:] or ["paper", "enso", "water", "bamboo", "mist", "landscape", "botanicals", "bowl"]
     table = {
         "paper": asset_paper, "enso": asset_enso, "water": asset_water_surface, "bamboo": asset_bamboo,
         "mist": asset_mountain_mist, "landscape": asset_landscape_sip, "botanicals": asset_botanicals,
+        "bowl": asset_stone_bowl,
     }
     for k in which:
         table[k](out)
         print("painted", k)
+

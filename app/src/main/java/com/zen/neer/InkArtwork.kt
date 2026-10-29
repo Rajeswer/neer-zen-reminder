@@ -75,8 +75,23 @@ internal fun herbArt(herb: Herb): Int = when (herb) {
 
 /** Ink botanical for an infusion. */
 @Composable
-internal fun IllustrationHerb(herb: Herb, modifier: Modifier = Modifier, alpha: Float = 1f) {
-    InkArtwork(herbArt(herb), modifier, alpha, contentScale = ContentScale.Fit, alignment = Alignment.Center)
+internal fun IllustrationHerb(herb: Herb, modifier: Modifier = Modifier, alpha: Float = 1f, closeUp: Boolean = false) {
+    if (closeUp) {
+        // Small tiles show the flower head and upper stem, where the character is.
+        InkArtwork(
+            herbArt(herb),
+            modifier.graphicsLayer {
+                scaleX = 1.7f
+                scaleY = 1.7f
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.08f)
+            },
+            alpha,
+            contentScale = ContentScale.Fit,
+            alignment = Alignment.TopCenter
+        )
+    } else {
+        InkArtwork(herbArt(herb), modifier, alpha, contentScale = ContentScale.Fit, alignment = Alignment.Center)
+    }
 }
 
 /** Draws [image] centred at [center], [width] wide, keeping its aspect ratio. */
@@ -120,6 +135,53 @@ internal fun DrawScope.drawEnsoReveal(image: ImageBitmap, center: Offset, side: 
         for (k in 0 until 3) {
             clipPath(wedge(center, reach, ENSO_START_DEG + sweep + k * feather, feather)) {
                 drawArtCentered(image, center, side, alpha * (0.7f - k * 0.22f))
+            }
+        }
+    }
+}
+
+/*
+ * illustration_stone_bowl geometry, as fractions of the image width W
+ * (see asset_stone_bowl in tools/inkpaint.py): the dark recess is an ellipse
+ * centred at (0.5 W, 0.1833 W) with radii (0.3917 W, 0.0833 W).
+ */
+private const val BOWL_OPENING_CY = 0.18333f
+private const val BOWL_OPENING_RX = 0.39167f
+private const val BOWL_OPENING_RY = 0.08333f
+
+/**
+ * The painted stone basin with water inside its recess. [level] 0..1 raises the water;
+ * [ripple] 0..1 (or null for still water) drives broken ink ripples on the surface.
+ */
+internal fun DrawScope.drawInkBowl(image: ImageBitmap, center: Offset, width: Float, level: Float, ripple: Float?) {
+    val height = width * image.height / image.width
+    val top = center.y - height / 2f
+    drawArtCentered(image, center, width)
+    val oc = Offset(center.x, top + width * BOWL_OPENING_CY)
+    val orx = width * BOWL_OPENING_RX
+    val ory = width * BOWL_OPENING_RY
+    val opening = Path().apply { addOval(Rect(oc.x - orx, oc.y - ory, oc.x + orx, oc.y + ory)) }
+    val lv = level.coerceIn(0f, 1f)
+    // an emptier basin shows the water lower in the recess
+    val wy = oc.y + ory * 0.55f * (1f - lv)
+    val wrx = orx * (0.86f + 0.12f * lv)
+    val wry = ory * (0.74f + 0.2f * lv)
+    clipPath(opening) {
+        drawOval(
+            androidx.compose.ui.graphics.lerp(Palette.DeepStone, Palette.PaleWater, 0.30f + 0.25f * lv),
+            topLeft = Offset(oc.x - wrx, wy - wry),
+            size = androidx.compose.ui.geometry.Size(wrx * 2f, wry * 2f),
+            alpha = 0.92f
+        )
+        drawOval(
+            Palette.StoneSurface,
+            topLeft = Offset(oc.x - wrx * 0.62f, wy - wry * 0.62f),
+            size = androidx.compose.ui.geometry.Size(wrx * 0.7f, wry * 0.42f),
+            alpha = 0.2f
+        )
+        if (ripple != null) {
+            for (j in 0 until 2) {
+                drawLandingRipple(Offset(oc.x, wy), wrx * 0.75f, (ripple + j / 2f) % 1f)
             }
         }
     }

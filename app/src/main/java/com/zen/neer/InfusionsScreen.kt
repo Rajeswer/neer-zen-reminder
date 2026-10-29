@@ -266,7 +266,7 @@ private fun InfusionCard(inf: Infusion, onClick: () -> Unit) {
                 .clip(Radius.control)
                 .background(Zen.surface)
         ) {
-            IllustrationHerb(inf.herb, Modifier.fillMaxSize().padding(Space.s4))
+            IllustrationHerb(inf.herb, Modifier.fillMaxSize().padding(Space.s4), closeUp = true)
         }
         Spacer(Modifier.width(Space.s16))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s2)) {

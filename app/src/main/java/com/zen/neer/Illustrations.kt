@@ -250,7 +250,7 @@ internal fun DrawScope.drawPaintedDroplet(at: Offset, d: Float, alpha: Float = 1
         size = Size(d * 0.84f, d * 0.62f),
         alpha = alpha * 0.45f
     )
-    drawPath(p, Palette.RiverBlue, alpha = alpha * 0.85f, style = Stroke(width = max(1.2f, d * 0.06f)))
+    drawPath(p, Palette.DeepStone, alpha = alpha * 0.9f, style = Stroke(width = max(1.4f, d * 0.07f)))
     drawOval(
         Palette.StoneSurface,
         topLeft = Offset(at.x - d * 0.30f, at.y - d * 0.05f),
@@ -344,7 +344,7 @@ internal fun DrawScope.drawLandingRipple(center: Offset, maxRadius: Float, t: Fl
             val sweep = 78f + ((j * 11 + k * 29) % 23)
             val front = if (start in 0f..180f) 1.25f else 0.8f
             drawArc(
-                if (k == 1) Palette.DeepStone else Palette.RiverBlue,
+                if (k == 1) Palette.CharcoalInk else Palette.DeepStone,
                 startAngle = start,
                 sweepAngle = sweep,
                 useCenter = false,

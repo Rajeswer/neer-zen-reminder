@@ -212,7 +212,7 @@ private fun Ritual(
     )
 
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val ensoSize = minOf(maxWidth - 40.dp, 320.dp).coerceAtLeast(232.dp)
+        val ensoSize = minOf(maxWidth - 32.dp, 360.dp).coerceAtLeast(232.dp)
         val stonesMaxWidth = maxWidth - 64.dp
 
         // The strongest landscape in the app: misty ranges, still water, rocks and a pine,
@@ -310,7 +310,7 @@ private fun Ritual(
                 }
             }
 
-            Spacer(Modifier.height(Space.s32))
+            Spacer(Modifier.height(Space.s40))
             Text(
                 reflections[sipsToday % reflections.size],
                 style = ZenReflection,
@@ -411,7 +411,7 @@ private fun WaterEnso(phase: RitualPhase, elapsed: () -> Long, modifier: Modifie
         val progress = WaterRitual.ensoProgress(e, reduced)
 
         // 1. Underlying brushwork: the whole stroke in pale mineral grey, softly visible.
-        drawArtCentered(enso, c, dim, alpha = 0.34f * restAlpha, tint = Palette.MineralGrey)
+        drawArtCentered(enso, c, dim, alpha = 0.42f * restAlpha, tint = Palette.DeepStone)
         // 2. Completed portion: the painted charcoal stroke revealed along its own direction.
         drawEnsoReveal(enso, c, dim, progress, alpha = 0.86f * inkAlpha)
 
@@ -426,7 +426,7 @@ private fun WaterEnso(phase: RitualPhase, elapsed: () -> Long, modifier: Modifie
         }
 
         // 5. Droplet: forms below the countdown, falls vertically under gravity, lands at the pool.
-        val d = dim * 0.034f
+        val d = dim * 0.042f
         val formAt = Offset(c.x, c.y + r * 0.24f)
         val landAt = Offset(c.x, pool.y - d * 0.9f)
         if (phase == RitualPhase.Ready) {
