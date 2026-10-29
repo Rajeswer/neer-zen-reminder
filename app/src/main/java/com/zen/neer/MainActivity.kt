@@ -64,6 +64,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -271,7 +272,15 @@ private fun ZenBottomNavigation(selected: Int, onSelect: (Int) -> Unit) {
                 selected = isSelected,
                 onClick = { onSelect(i) },
                 icon = { Icon(if (isSelected) d.selectedIcon else d.icon, contentDescription = null) },
-                label = { Text(d.label, style = MaterialTheme.typography.labelMedium) },
+                label = {
+                    Text(
+                        d.label,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                        )
+                    )
+                },
+                alwaysShowLabel = true,
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Zen.textPrimary,
                     selectedTextColor = Zen.textPrimary,

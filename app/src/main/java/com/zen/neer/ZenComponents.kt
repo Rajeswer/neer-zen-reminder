@@ -159,7 +159,7 @@ internal fun ZenTopBar(
 @Composable
 private fun pressedScale(source: MutableInteractionSource): Float {
     val pressed by source.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(120), label = "press")
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(Motion.controlMs), label = "press")
     return scale
 }
 
@@ -243,6 +243,42 @@ internal fun ZenSecondaryButton(
             }
     ) {
         ButtonContent(text, icon, false, contentColor)
+    }
+}
+
+/** A quiet tonal action that should not compete with the main visual (e.g. Cancel). */
+@Composable
+internal fun ZenTonalButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    enabled: Boolean = true
+) {
+    val source = remember { MutableInteractionSource() }
+    val scale = pressedScale(source)
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = source,
+        shape = Radius.pill,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Zen.surface,
+            contentColor = Zen.textPrimary,
+            disabledContainerColor = Zen.surface,
+            disabledContentColor = Zen.textDisabled
+        ),
+        border = BorderStroke(1.dp, Zen.borderSubtle),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+        contentPadding = PaddingValues(horizontal = Space.s20, vertical = Space.s12),
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+    ) {
+        ButtonContent(text, icon, false, Zen.textPrimary)
     }
 }
 

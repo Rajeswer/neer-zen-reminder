@@ -231,7 +231,7 @@ internal fun DrawScope.drawEnso(
 
 /** A simple painted droplet, point up. Soft wash, no glossy highlight. */
 internal fun DrawScope.drawPaintedDroplet(at: Offset, d: Float, alpha: Float = 1f) {
-    if (alpha <= 0.001f) return
+    if (alpha <= 0.001f || d <= 0.5f) return
     val p = Path().apply {
         moveTo(at.x, at.y - d)
         cubicTo(at.x + d * 0.22f, at.y - d * 0.55f, at.x + d * 0.62f, at.y - d * 0.10f, at.x + d * 0.62f, at.y + d * 0.25f)
@@ -282,6 +282,59 @@ internal fun DrawScope.drawRipples(center: Offset, maxRadius: Float, phase: Floa
             topLeft = Offset(center.x - rx * 1.04f, center.y - rx * 0.24f),
             size = Size(rx * 2f, rx * 0.48f),
             alpha = alpha * (1f - u) * 0.7f,
+            style = Stroke(width = strokeW)
+        )
+    }
+}
+
+/**
+ * A calm water surface: a faint painted waterline and two still rings around [center].
+ * Stays subordinate to the countdown; it never animates on its own.
+ */
+internal fun DrawScope.drawWaterSurface(center: Offset, halfWidth: Float, alpha: Float = 1f) {
+    val line = 1.dp.toPx()
+    drawLine(
+        Palette.RiverBlue,
+        Offset(center.x - halfWidth, center.y),
+        Offset(center.x + halfWidth * 0.92f, center.y),
+        strokeWidth = line,
+        cap = StrokeCap.Round,
+        alpha = 0.22f * alpha
+    )
+    drawLine(
+        Palette.MineralGrey,
+        Offset(center.x - halfWidth * 0.62f, center.y + halfWidth * 0.10f),
+        Offset(center.x + halfWidth * 0.48f, center.y + halfWidth * 0.10f),
+        strokeWidth = line,
+        cap = StrokeCap.Round,
+        alpha = 0.30f * alpha
+    )
+    for (j in 0 until 2) {
+        val rx = halfWidth * (0.22f + 0.22f * j)
+        drawOval(
+            Palette.RiverBlue,
+            topLeft = Offset(center.x - rx, center.y - rx * 0.22f),
+            size = Size(rx * 2f, rx * 0.44f),
+            alpha = alpha * (0.20f - j * 0.07f),
+            style = Stroke(width = line)
+        )
+    }
+}
+
+/** The ripple a single droplet makes on landing. [t] 0..1 over Motion.rippleMs. */
+internal fun DrawScope.drawLandingRipple(center: Offset, maxRadius: Float, t: Float) {
+    if (t <= 0f || t >= 1f) return
+    val strokeW = 1.2.dp.toPx()
+    for (j in 0 until 2) {
+        val u = ((t - j * 0.22f) / 0.78f).coerceIn(0f, 1f)
+        if (u <= 0f || u >= 1f) continue
+        val eased = 1f - (1f - u) * (1f - u)
+        val rx = maxRadius * (0.08f + 0.92f * eased)
+        drawOval(
+            Palette.RiverBlue,
+            topLeft = Offset(center.x - rx, center.y - rx * 0.22f),
+            size = Size(rx * 2f, rx * 0.44f),
+            alpha = (1f - u) * 0.75f,
             style = Stroke(width = strokeW)
         )
     }
@@ -358,24 +411,19 @@ internal fun DrawScope.drawLeaf(at: Offset, angle: Float, len: Float, wid: Float
     }
 }
 
-/** Sparse bamboo at the edge of a composition, with a slow sway when motion is allowed. */
+/**
+ * Sparse brush-pen bamboo for the edge of a composition. Static (no idle motion),
+ * low opacity, alternating mineral grey and muted sage. [strength] scales the ink.
+ */
 @Composable
-internal fun IllustrationBambooEdge(modifier: Modifier = Modifier, mirrored: Boolean = false, seed: Long = 3L) {
-    val reduced = LocalReducedMotion.current
-    val sway: State<Float>? = if (reduced) null else rememberInfiniteTransition(label = "sway").animateFloat(
-        initialValue = -1.2f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(tween(6200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "sway-angle"
-    )
-    Canvas(
-        modifier
-            .clearAndSetSemantics { }
-            .graphicsLayer {
-                rotationZ = (sway?.value ?: 0f) * (if (mirrored) -1f else 1f)
-                transformOrigin = TransformOrigin(if (mirrored) 1f else 0f, 0f)
-            }
-    ) {
+internal fun IllustrationBambooEdge(
+    modifier: Modifier = Modifier,
+    mirrored: Boolean = false,
+    seed: Long = 3L,
+    leaves: Int = 6,
+    strength: Float = 1f
+) {
+    Canvas(modifier.clearAndSetSemantics { }) {
         val w = size.width
         val h = size.height
         withTransform({ if (mirrored) scale(-1f, 1f, pivot = center) }) {
@@ -388,14 +436,15 @@ internal fun IllustrationBambooEdge(modifier: Modifier = Modifier, mirrored: Boo
                 moveTo(p0.x, p0.y)
                 cubicTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y)
             }
-            drawPath(stem, Palette.DeepSage, alpha = 0.35f, style = Stroke(width = w * 0.012f, cap = StrokeCap.Round))
-            for (i in 0 until 6) {
-                val t = 0.16f + i * 0.13f
+            drawPath(stem, Palette.MineralGrey, alpha = 0.55f * strength, style = Stroke(width = w * 0.010f, cap = StrokeCap.Round))
+            for (i in 0 until leaves) {
+                val t = 0.16f + i * (0.78f / leaves.coerceAtLeast(1))
                 val at = bezier(p0, p1, p2, p3, t.coerceAtMost(1f))
                 val side = if (i % 2 == 0) 1f else -1f
                 val angle = 62f + side * (22f + rnd.nextFloat() * 20f)
-                val len = w * (0.30f + rnd.nextFloat() * 0.16f) * (1f - i * 0.05f)
-                drawLeaf(at, angle, len, len * 0.15f, Palette.MutedSage, 0.40f + rnd.nextFloat() * 0.2f)
+                val len = w * (0.28f + rnd.nextFloat() * 0.16f) * (1f - i * 0.05f)
+                val tone = if (i % 3 == 1) Palette.MineralGrey else Palette.MutedSage
+                drawLeaf(at, angle, len, len * 0.13f, tone, (0.30f + rnd.nextFloat() * 0.15f) * strength)
             }
         }
     }
@@ -430,7 +479,7 @@ private fun stoneOutline(m: FloatArray, c: Offset, r: Float): Path {
  * still to come. The numeric label beside it carries the same information as text.
  */
 @Composable
-internal fun RiverStoneProgress(count: Int, goal: Int, modifier: Modifier = Modifier) {
+internal fun RiverStoneProgress(count: Int, goal: Int, modifier: Modifier = Modifier, markNext: Boolean = true) {
     val animated by animateFloatAsState(
         targetValue = count.coerceAtMost(goal).toFloat(),
         animationSpec = tween(700, easing = FastOutSlowInEasing),
@@ -451,9 +500,11 @@ internal fun RiverStoneProgress(count: Int, goal: Int, modifier: Modifier = Modi
             val fill = (animated - i).coerceIn(0f, 1f)
             val outline = stoneOutline(shapes[i], c, rBase)
             if (fill < 1f) {
+                val isNext = markNext && i == count
+                // next stone: solid outline; later stones: faint dashed outline
                 drawPath(
-                    outline, Palette.DeepStone, alpha = 0.7f * (1f - fill),
-                    style = Stroke(width = 1.dp.toPx(), pathEffect = dash)
+                    outline, Palette.DeepStone, alpha = (if (isNext) 0.95f else 0.55f) * (1f - fill),
+                    style = Stroke(width = (if (isNext) 1.5f else 1f).dp.toPx(), pathEffect = if (isNext) null else dash)
                 )
             }
             if (fill > 0f) {

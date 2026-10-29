@@ -132,6 +132,36 @@ internal val ZenQuote = TextStyle(
     lineHeight = 26.sp
 )
 
+/** Secondary reflective line: editorial, but quieter than [ZenQuote]. */
+internal val ZenReflection = TextStyle(
+    fontFamily = SerifFamily,
+    fontStyle = FontStyle.Italic,
+    fontWeight = FontWeight.Normal,
+    fontSize = 15.sp,
+    lineHeight = 23.sp
+)
+
+/** Large ritual countdown. Tabular figures keep the digits from shifting as they change. */
+internal val ZenCountdown = TextStyle(
+    fontFamily = SerifFamily,
+    fontWeight = FontWeight.Normal,
+    fontSize = 56.sp,
+    lineHeight = 60.sp,
+    fontFeatureSettings = "tnum"
+)
+
+/** Motion timings (design system §8, Mindful Sip motion spec). */
+internal object Motion {
+    const val dropletFormMs = 220L
+    const val dropletFallMs = 440L
+    const val rippleMs = 560L
+    const val ensoAdvanceMs = 380L
+    const val settleMs = 800L
+    const val controlMs = 140
+    const val fadeMs = 300
+    const val quickFadeMs = 160
+}
+
 /** True when the system "Remove animations" setting is on. */
 internal val LocalReducedMotion = staticCompositionLocalOf { false }
 

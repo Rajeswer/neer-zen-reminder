@@ -3,12 +3,8 @@ package com.zen.neer
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,7 +12,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,6 +24,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -40,10 +36,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -66,15 +63,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.PI
-import kotlin.math.ceil
-import kotlin.math.sin
 
-internal enum class RitualPhase { Ready, Hold, Sip, Still, Complete }
+/**
+ * Ready → Hold → Sip → Still → Settling (sip recorded, water settles) → Complete (Well done).
+ * Timing lives in [WaterRitual]; this file owns the session and the layout.
+ */
+internal enum class RitualPhase { Ready, Hold, Sip, Still, Settling, Complete }
 
-private const val RITUAL_MS = 12_000L
-
-private val mindfulPrompts = listOf(
+private val reflections = listOf(
     "A small sip is a moment of care.",
     "Notice the coolness of the water before your next thought.",
     "Unclench your jaw. Let the shoulders soften.",
@@ -83,13 +79,24 @@ private val mindfulPrompts = listOf(
     "Slow water, quiet mind."
 )
 
-private fun phaseLabel(phase: RitualPhase): String = when (phase) {
-    RitualPhase.Ready -> "Breathe · Sip · Be present"
-    RitualPhase.Hold -> "Hold the glass. Breathe in slowly."
-    RitualPhase.Sip -> "Take slow, unhurried sips."
-    RitualPhase.Still -> "Set the glass down. Stay still."
-    RitualPhase.Complete -> ""
+/** One instruction per phase, never several at once. */
+private fun instructionFor(phase: RitualPhase): String = when (phase) {
+    RitualPhase.Ready -> "When you're ready, hold your glass and begin."
+    RitualPhase.Hold -> "Hold your glass. Breathe in slowly."
+    RitualPhase.Sip -> "Take a gentle sip."
+    RitualPhase.Still -> "Let the moment settle."
+    RitualPhase.Settling, RitualPhase.Complete -> "Let the water settle."
 }
+
+private fun centreLabelFor(phase: RitualPhase): String = when (phase) {
+    RitualPhase.Hold -> "Breathe in"
+    RitualPhase.Sip -> "Sip"
+    RitualPhase.Still -> "Settle"
+    else -> ""
+}
+
+private fun RitualPhase.isActive() =
+    this == RitualPhase.Hold || this == RitualPhase.Sip || this == RitualPhase.Still
 
 @Composable
 internal fun SipScreen(
@@ -104,51 +111,53 @@ internal fun SipScreen(
     val latestFeedback by rememberUpdatedState(feedback)
 
     var phase by remember { mutableStateOf(RitualPhase.Ready) }
-    val progress = remember { mutableFloatStateOf(0f) }
+    val elapsed = remember { mutableLongStateOf(0L) }
     var job by remember { mutableStateOf<Job?>(null) }
-    val secondsLeft by remember {
-        derivedStateOf { ceil((1f - progress.floatValue) * 12f).toInt().coerceIn(1, 12) }
-    }
 
     fun startRitual() {
         if (job?.isActive == true || phase != RitualPhase.Ready) return
         job = scope.launch {
-            progress.floatValue = 0f
+            elapsed.longValue = 0L
             phase = RitualPhase.Hold
             latestFeedback.tick()
-            val start = withFrameNanos { it }
+            var recorded = false
+            var last = withFrameNanos { it }
             while (true) {
                 val now = withFrameNanos { it }
-                val p = (((now - start) / 1_000_000L).toFloat() / RITUAL_MS).coerceIn(0f, 1f)
-                progress.floatValue = p
-                val next = when {
-                    p < 1f / 3f -> RitualPhase.Hold
-                    p < 2f / 3f -> RitualPhase.Sip
-                    p < 1f -> RitualPhase.Still
-                    else -> RitualPhase.Complete
-                }
-                if (next == RitualPhase.Complete) break
+                // Frames stop while the app is in the background. Capping each step pauses the
+                // ritual there instead of jumping ahead, so time on screen is time experienced.
+                val step = ((now - last) / 1_000_000L).coerceIn(0L, 64L)
+                last = now
+                val e = (elapsed.longValue + step).coerceAtMost(WaterRitual.DURATION_MS + Motion.settleMs)
+                elapsed.longValue = e
+                val next = WaterRitual.phase(e)
                 if (next != phase) {
                     phase = next
-                    latestFeedback.tick()
+                    if (next.isActive()) latestFeedback.tick()
                 }
+                if (!recorded && e >= WaterRitual.DURATION_MS) {
+                    // The only place a sip is recorded: once, when the sequence completes.
+                    recorded = true
+                    latestFeedback.complete(withSound = false)
+                    latestComplete()
+                }
+                if (e >= WaterRitual.DURATION_MS + Motion.settleMs) break
             }
-            // The only place a sip is recorded: once per completed ritual.
             phase = RitualPhase.Complete
-            latestFeedback.complete(withSound = false)
-            latestComplete()
         }
     }
 
     fun cancelRitual() {
+        if (!phase.isActive()) return
         job?.cancel()
         job = null
+        elapsed.longValue = 0L
         phase = RitualPhase.Ready
     }
 
     fun finish() {
         job = null
-        progress.floatValue = 0f
+        elapsed.longValue = 0L
         phase = RitualPhase.Ready
     }
 
@@ -165,7 +174,7 @@ internal fun SipScreen(
         )
         AnimatedContent(
             targetState = phase == RitualPhase.Complete,
-            transitionSpec = { fadeIn(tween(420)) togetherWith fadeOut(tween(220)) },
+            transitionSpec = { fadeIn(tween(420)) togetherWith fadeOut(tween(Motion.quickFadeMs)) },
             label = "sip-state"
         ) { complete ->
             if (complete) {
@@ -173,8 +182,7 @@ internal fun SipScreen(
             } else {
                 Ritual(
                     phase = phase,
-                    progress = { progress.floatValue },
-                    secondsLeft = { secondsLeft },
+                    elapsed = { elapsed.longValue },
                     sipsToday = sipsToday,
                     dailyGoal = dailyGoal,
                     onStart = { startRitual() },
@@ -188,19 +196,41 @@ internal fun SipScreen(
 @Composable
 private fun Ritual(
     phase: RitualPhase,
-    progress: () -> Float,
-    secondsLeft: () -> Int,
+    elapsed: () -> Long,
     sipsToday: Int,
     dailyGoal: Int,
     onStart: () -> Unit,
     onCancel: () -> Unit
 ) {
-    val running = phase == RitualPhase.Hold || phase == RitualPhase.Sip || phase == RitualPhase.Still
+    val secondsLeft by remember { derivedStateOf { WaterRitual.secondsLeft(elapsed()) } }
+    val reflectionAlpha by animateFloatAsState(
+        targetValue = if (phase == RitualPhase.Ready) 1f else 0.55f,
+        animationSpec = tween(Motion.fadeMs),
+        label = "reflection"
+    )
+
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val ensoSize = minOf(maxWidth - 48.dp, 320.dp).coerceAtLeast(220.dp)
-        val stonesMaxWidth = maxWidth - 48.dp
-        IllustrationBambooEdge(Modifier.align(Alignment.TopStart).size(96.dp, 120.dp), seed = 3L)
-        IllustrationBambooEdge(Modifier.align(Alignment.TopEnd).size(84.dp, 110.dp), mirrored = true, seed = 8L)
+        val ensoSize = minOf(maxWidth - 40.dp, 320.dp).coerceAtLeast(232.dp)
+        val stonesMaxWidth = maxWidth - 64.dp
+
+        // Asymmetric, low-weight botanical framing at the edges, clear of text and controls.
+        IllustrationBambooEdge(
+            Modifier.align(Alignment.TopStart).size(92.dp, 116.dp),
+            seed = 3L,
+            leaves = 5,
+            strength = 0.8f
+        )
+        IllustrationBambooEdge(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = ensoSize * 0.7f)
+                .size(52.dp, 68.dp),
+            mirrored = true,
+            seed = 17L,
+            leaves = 3,
+            strength = 0.65f
+        )
+
         Column(
             Modifier
                 .fillMaxWidth()
@@ -208,104 +238,102 @@ private fun Ritual(
                 .padding(bottom = Space.s24),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val source = remember { MutableInteractionSource() }
-            val pressed by source.collectIsPressedAsState()
-            val pressScale by animateFloatAsState(if (pressed) 0.98f else 1f, tween(160), label = "enso-press")
             Box(
                 Modifier
-                    .padding(top = Space.s8)
+                    .padding(top = Space.s4)
                     .size(ensoSize)
-                    .graphicsLayer {
-                        scaleX = pressScale
-                        scaleY = pressScale
-                    }
                     .clickable(
-                        interactionSource = source,
+                        interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         enabled = phase == RitualPhase.Ready,
-                        onClickLabel = "Begin the 12-second sip",
+                        onClickLabel = "Begin the 12-second mindful sip",
                         role = Role.Button,
                         onClick = onStart
                     )
                     .semantics {
-                        contentDescription = "Enso sip circle"
-                        stateDescription = when (phase) {
-                            RitualPhase.Ready -> "Ready"
-                            RitualPhase.Hold -> "Hold the glass"
-                            RitualPhase.Sip -> "Sip slowly"
-                            RitualPhase.Still -> "Stillness"
-                            RitualPhase.Complete -> "Complete"
+                        contentDescription = "Mindful sip"
+                        stateDescription = when {
+                            phase == RitualPhase.Ready -> "Ready, 12 seconds"
+                            phase.isActive() -> "${centreLabelFor(phase)}, $secondsLeft seconds left"
+                            else -> "Complete"
                         }
                     },
                 contentAlignment = Alignment.Center
             ) {
-                EnsoRitualCanvas(phase = phase, progress = progress, modifier = Modifier.fillMaxSize())
-                EnsoCentre(phase = phase, secondsLeft = secondsLeft)
+                WaterEnso(phase = phase, elapsed = elapsed, modifier = Modifier.fillMaxSize())
+                // Lifted slightly so the droplet's path below never crosses the countdown.
+                EnsoCentre(
+                    phase = phase,
+                    secondsLeft = { secondsLeft },
+                    modifier = Modifier.padding(bottom = ensoSize * 0.18f)
+                )
             }
 
+            Spacer(Modifier.height(Space.s8))
             AnimatedContent(
-                targetState = phase,
-                transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(160)) },
-                label = "guidance",
+                targetState = instructionFor(phase),
+                transitionSpec = { fadeIn(tween(Motion.fadeMs)) togetherWith fadeOut(tween(Motion.quickFadeMs)) },
+                label = "instruction",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 28.dp)
-            ) { ph ->
+                    .heightIn(min = 52.dp)
+            ) { line ->
                 Text(
-                    phaseLabel(ph),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Zen.textSecondary,
+                    line,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Zen.textPrimary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = Space.s24)
                         .semantics { liveRegion = LiveRegionMode.Polite }
                 )
             }
 
-            Spacer(Modifier.height(Space.s16))
-            AnimatedContent(
-                targetState = running,
-                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
-                label = "sip-action"
-            ) { isRunning ->
-                if (isRunning) {
-                    ZenSecondaryButton(
-                        text = "Cancel",
-                        icon = Icons.Outlined.Close,
-                        onClick = onCancel,
-                        modifier = Modifier.width(200.dp)
-                    )
-                } else {
-                    ZenPrimaryButton(
+            Spacer(Modifier.height(Space.s8))
+            Box(Modifier.heightIn(min = 52.dp), contentAlignment = Alignment.Center) {
+                when {
+                    phase == RitualPhase.Ready -> ZenPrimaryButton(
                         text = "Begin mindful sip",
                         icon = Icons.Outlined.WaterDrop,
                         onClick = onStart,
-                        modifier = Modifier.width(240.dp)
+                        modifier = Modifier.widthIn(min = 220.dp)
                     )
+                    phase.isActive() -> ZenTonalButton(
+                        text = "Cancel",
+                        icon = Icons.Outlined.Close,
+                        onClick = onCancel,
+                        modifier = Modifier.widthIn(min = 140.dp)
+                    )
+                    else -> Spacer(Modifier.height(52.dp))
                 }
             }
 
             Spacer(Modifier.height(Space.s32))
             Text(
-                "“${mindfulPrompts[sipsToday % mindfulPrompts.size]}”",
-                style = ZenQuote,
-                color = Zen.textPrimary,
+                reflections[sipsToday % reflections.size],
+                style = ZenReflection,
+                color = Zen.textSecondary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Space.s16)
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .graphicsLayer { alpha = reflectionAlpha }
             )
+
             Spacer(Modifier.height(Space.s24))
             RiverStoneProgress(
                 count = sipsToday,
                 goal = dailyGoal,
+                markNext = sipsToday < dailyGoal,
                 modifier = Modifier
-                    .width((dailyGoal * 34).dp.coerceAtMost(stonesMaxWidth))
-                    .height(30.dp)
+                    .width((dailyGoal * 30).dp.coerceAtMost(stonesMaxWidth))
+                    .height(26.dp)
             )
             Spacer(Modifier.height(Space.s8))
             Text(
                 if (sipsToday >= dailyGoal) "$sipsToday of $dailyGoal mindful sips today · goal reached"
                 else "$sipsToday of $dailyGoal mindful sips today",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = Zen.textSecondary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.clearAndSetSemantics { }
@@ -315,82 +343,100 @@ private fun Ritual(
 }
 
 @Composable
-private fun EnsoCentre(phase: RitualPhase, secondsLeft: () -> Int) {
+private fun EnsoCentre(phase: RitualPhase, secondsLeft: () -> Int, modifier: Modifier = Modifier) {
+    // Running phases share one content slot, so the countdown never cross-fades between phases.
+    val slot = when {
+        phase == RitualPhase.Ready -> 0
+        phase.isActive() -> 1
+        else -> 2
+    }
     AnimatedContent(
-        targetState = phase,
-        transitionSpec = { fadeIn(tween(260)) togetherWith fadeOut(tween(160)) },
+        targetState = slot,
+        transitionSpec = { fadeIn(tween(Motion.fadeMs)) togetherWith fadeOut(tween(Motion.quickFadeMs)) },
         label = "enso-centre",
-        modifier = Modifier.clearAndSetSemantics { }
-    ) { ph ->
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.s4)) {
-            when (ph) {
-                RitualPhase.Ready, RitualPhase.Complete -> {
+        modifier = modifier.clearAndSetSemantics { }
+    ) { s ->
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.s2)) {
+            when (s) {
+                0 -> {
                     Text("Take a sip", style = MaterialTheme.typography.headlineMedium, color = Zen.textPrimary)
                     Text("12 seconds", style = MaterialTheme.typography.bodyMedium, color = Zen.textSecondary)
                 }
-                RitualPhase.Hold, RitualPhase.Sip, RitualPhase.Still -> {
-                    Text("${secondsLeft()}", style = MaterialTheme.typography.displayLarge, color = Zen.textPrimary)
-                    Text(
-                        when (ph) {
-                            RitualPhase.Hold -> "Hold"
-                            RitualPhase.Sip -> "Sip"
-                            else -> "Stillness"
-                        },
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Zen.textSecondary
-                    )
+                1 -> {
+                    Text("${secondsLeft()}", style = ZenCountdown, color = Zen.textPrimary)
+                    AnimatedContent(
+                        targetState = centreLabelFor(phase),
+                        transitionSpec = { fadeIn(tween(Motion.fadeMs)) togetherWith fadeOut(tween(Motion.quickFadeMs)) },
+                        label = "phase-label"
+                    ) { label ->
+                        Text(label, style = MaterialTheme.typography.labelLarge, color = Zen.textSecondary)
+                    }
+                }
+                else -> {
+                    Text("Complete", style = MaterialTheme.typography.headlineSmall, color = Zen.textPrimary)
                 }
             }
         }
     }
 }
 
+/**
+ * The water and the Enso. Droplets fall straight down the centre into the water; each landing
+ * sends out one ripple and advances the brushwork. All of it is read from [elapsed] at draw
+ * time, so this composable holds no session logic and redraws without recomposing.
+ */
 @Composable
-private fun EnsoRitualCanvas(phase: RitualPhase, progress: () -> Float, modifier: Modifier) {
+private fun WaterEnso(phase: RitualPhase, elapsed: () -> Long, modifier: Modifier) {
     val brush = remember { EnsoBrush(21L) }
     val reduced = LocalReducedMotion.current
-    val ghostAlpha by animateFloatAsState(
-        targetValue = if (phase == RitualPhase.Ready) 0.55f else 0.22f,
-        animationSpec = tween(600),
-        label = "enso-ghost"
+    val restAlpha by animateFloatAsState(
+        targetValue = if (phase == RitualPhase.Ready) 1f else 0.7f,
+        animationSpec = tween(Motion.fadeMs),
+        label = "enso-rest"
     )
     val inkAlpha by animateFloatAsState(
         targetValue = if (phase == RitualPhase.Ready) 0f else 1f,
-        animationSpec = tween(if (phase == RitualPhase.Ready) 600 else 120),
+        animationSpec = tween(Motion.fadeMs),
         label = "enso-ink"
     )
-    val bob: State<Float>? = if (reduced) null else rememberInfiniteTransition(label = "bob").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(3200, easing = LinearEasing)),
-        label = "bob-t"
-    )
-    Canvas(modifier) {
+    val completedTail = remember { lerp(Palette.CharcoalInk, Palette.RiverBlue, 0.7f) }
+
+    Canvas(modifier.clearAndSetSemantics { }) {
         val dim = size.minDimension
-        val w = dim * 0.06f
-        val dropSize = dim * 0.05f
-        val r = dim * 0.5f - w - dropSize * 2.2f
+        val w = dim * 0.042f
+        val r = dim * 0.5f - w * 1.4f
         val c = center
-        val p = progress()
+        val e = elapsed()
+        val progress = WaterRitual.ensoProgress(e, reduced)
 
-        // resting, unpainted ring in mineral grey
-        drawEnso(brush, c, r, w, 1f, Palette.MineralGrey, Palette.MineralGrey, ghostAlpha)
-        // the ritual paints the ring in sumi ink, drying into river blue
-        drawEnso(brush, c, r, w, p, Palette.SumiInk, Palette.RiverBlue, inkAlpha)
+        // 1. Underlying brushwork: mineral grey, softly visible.
+        drawEnso(brush, c, r, w, 1f, Palette.MineralGrey, Palette.MineralGrey, 0.5f * restAlpha)
+        // 2. Completed portion: lighter charcoal ink that dries toward water blue.
+        drawEnso(brush, c, r, w * 0.9f, progress, Palette.CharcoalInk, completedTail, 0.78f * inkAlpha)
 
-        // calm water within the lower ring
-        drawRipples(Offset(c.x, c.y + r * 0.58f), r * 0.55f, null, alpha = 0.9f)
+        // 3. Water surface in the lower interior.
+        val pool = Offset(c.x, c.y + r * 0.55f)
+        val halfWidth = r * 0.6f
+        drawWaterSurface(pool, halfWidth)
 
-        // the droplet waits above the ring, then rides the brush tip
-        val bobY = (bob?.value ?: 0f).let { sin(it * 2f * PI.toFloat()) * dim * 0.008f }
-        val top = Offset(c.x, c.y - r - w * 0.2f - dropSize * 1.25f + bobY)
-        val pos = if (phase == RitualPhase.Ready) {
-            top
-        } else {
-            val tip = brush.tipAt(p, c, r, w, dropSize * 1.2f)
-            lerp(top, tip, (p * 6f).coerceAtMost(1f))
+        // 4. Ripple from the latest landing only.
+        WaterRitual.ripple(e)?.let { t ->
+            drawLandingRipple(pool, halfWidth * 0.85f, if (reduced) 0.35f else t)
         }
-        drawPaintedDroplet(pos, dropSize)
+
+        // 5. Droplet: forms below the countdown, falls vertically under gravity, lands at the pool.
+        val d = dim * 0.03f
+        val formAt = Offset(c.x, c.y + r * 0.22f)
+        val landAt = Offset(c.x, pool.y - d * 0.9f)
+        if (phase == RitualPhase.Ready) {
+            drawPaintedDroplet(formAt, d, alpha = 0.7f)
+        } else {
+            WaterRitual.droplet(e)?.let { frame ->
+                val fall = if (reduced) 0f else frame.fall
+                val pos = lerp(formAt, landAt, fall * fall)
+                drawPaintedDroplet(pos, d * (0.35f + 0.65f * frame.formation), alpha = frame.formation)
+            }
+        }
     }
 }
 
@@ -399,10 +445,10 @@ private fun WellDone(onDone: () -> Unit) {
     val reduced = LocalReducedMotion.current
     val fall = remember { Animatable(if (reduced) 1f else 0f) }
     val ripple = remember { Animatable(if (reduced) 1f else 0f) }
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         if (!reduced) {
-            fall.animateTo(1f, tween(700, easing = FastOutLinearInEasing))
-            ripple.animateTo(1f, tween(2400, easing = LinearOutSlowInEasing))
+            fall.animateTo(1f, tween(Motion.dropletFallMs.toInt() + 260, easing = FastOutLinearInEasing))
+            ripple.animateTo(1f, tween(Motion.rippleMs.toInt() * 3, easing = LinearOutSlowInEasing))
         }
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -418,15 +464,13 @@ private fun WellDone(onDone: () -> Unit) {
                 IllustrationMountainMist(Modifier.fillMaxSize(), seed = 9L)
                 Canvas(Modifier.fillMaxSize().clearAndSetSemantics { }) {
                     val pool = Offset(size.width / 2f, size.height * 0.78f)
-                    val d = size.minDimension * 0.1f
+                    val d = size.minDimension * 0.08f
                     val f = fall.value
-                    val start = Offset(pool.x, size.height * 0.18f)
-                    val pos = lerp(start, pool, f * f)
+                    val start = Offset(pool.x, size.height * 0.2f)
+                    drawWaterSurface(pool, size.width * 0.32f)
                     val rp = ripple.value
-                    if (rp > 0f) {
-                        drawRipples(pool, size.width * 0.36f, if (rp >= 1f) null else rp)
-                    }
-                    if (f < 1f) drawPaintedDroplet(pos, d, alpha = 1f - ((f - 0.85f) / 0.15f).coerceIn(0f, 1f))
+                    if (rp > 0f && rp < 1f) drawLandingRipple(pool, size.width * 0.34f, rp)
+                    if (f < 1f) drawPaintedDroplet(lerp(start, pool, f * f), d, alpha = 1f - ((f - 0.85f) / 0.15f).coerceIn(0f, 1f))
                 }
             }
             Spacer(Modifier.height(Space.s16))
@@ -445,11 +489,7 @@ private fun WellDone(onDone: () -> Unit) {
                     Spacer(Modifier.width(Space.s12))
                     Column {
                         Text("A calmer mind", style = MaterialTheme.typography.titleMedium, color = Zen.textPrimary)
-                        Text(
-                            "begins with small actions.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Zen.textSecondary
-                        )
+                        Text("begins with small actions.", style = MaterialTheme.typography.bodyMedium, color = Zen.textSecondary)
                     }
                 }
             }
