@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
@@ -674,7 +675,7 @@ internal fun IllustrationInfusionGlass(herb: Herb, modifier: Modifier = Modifier
         drawPath(glass, Palette.StoneSurface, alpha = 0.55f)
         val liquidTop = top + gH * 0.22f
         val tint = lerpColor(Palette.PaleWater, herbTint(herb), (0.15f + 0.85f * fill()).coerceIn(0f, 1f))
-        clipPathSafe(glass) {
+        clipPath(glass) {
             drawRect(tint, topLeft = Offset(cx - gW / 2f, liquidTop), size = Size(gW, gH), alpha = 0.85f)
             drawOval(Palette.StoneSurface, topLeft = Offset(cx - gW * 0.46f, liquidTop - gH * 0.03f), size = Size(gW * 0.92f, gH * 0.07f), alpha = 0.45f)
             for (s in seeds) {
@@ -688,6 +689,3 @@ internal fun IllustrationInfusionGlass(herb: Herb, modifier: Modifier = Modifier
     }
 }
 
-private inline fun DrawScope.clipPathSafe(path: Path, block: DrawScope.() -> Unit) {
-    androidx.compose.ui.graphics.drawscope.clipPath(path) { block() }
-}
