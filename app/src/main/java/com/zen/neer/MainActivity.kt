@@ -139,7 +139,8 @@ private fun NeerApp(store: NeerStore) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             // Leaving the app pauses a sip session; coming back shows Resume / End.
-            if (event == Lifecycle.Event.ON_STOP) sip.pause()
+            // ON_PAUSE, not ON_STOP: stop can lag seconds behind leaving while time keeps running.
+            if (event == Lifecycle.Event.ON_PAUSE) sip.pause()
             if (event == Lifecycle.Event.ON_RESUME) {
                 sipsToday = store.loadPebbles()
                 val t = System.currentTimeMillis()

@@ -146,7 +146,8 @@ sleep 2.5; shot 15-steep
 # Back dismisses the steep timer (the countdown keeps uiautomator from settling).
 adb shell input keyevent KEYCODE_BACK
 sleep 1.2
-expect "Herbal Infusions" || expect "Jeera Water"
+# Back from the steep timer returns to the recipe it was started from.
+expect "Jeera Water"
 
 # --- Settings ---------------------------------------------------------------------
 tap "Sip"

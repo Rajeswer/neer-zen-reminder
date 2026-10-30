@@ -82,7 +82,7 @@ internal fun RunSipSession(controller: SipSessionController, onEvent: (SipEvent)
 }
 
 /**
- * Leaving the app pauses the session explicitly (ON_STOP), so this cap only guards against
+ * Leaving the app pauses the session explicitly (ON_PAUSE), so this cap only guards against
  * a long stall. It is generous so slow devices keep the countdown in step with real time.
  */
 private const val MAX_FRAME_STEP_MS = 250L
