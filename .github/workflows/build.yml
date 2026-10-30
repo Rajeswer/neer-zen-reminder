@@ -28,39 +28,60 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
+      - name: Unit tests and debug APK
         shell: bash
         run: |
           set -o pipefail
-          if ! gradle :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log; then
+          if ! gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log; then
             # Surface the real errors as annotations so they show on the run page (and on mobile).
             errs=$(grep -E '^e: |error: |ERROR:|AAPT: error' build.log | sed "s#file://$GITHUB_WORKSPACE/##; s#$GITHUB_WORKSPACE/##" | head -40 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             [ -n "$errs" ] && echo "::error title=Compile errors::$errs"
+            tests=$(grep -E ' > .* FAILED|^    [A-Za-z.]*(Error|Exception)' build.log | head -30 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            [ -n "$tests" ] && echo "::error title=Failing unit tests::$tests"
             why=$(grep -A 15 'What went wrong' build.log | head -30 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             [ -n "$why" ] && echo "::error title=Gradle failure::$why"
             exit 1
           fi
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          if [ ! -f "$apk" ]; then echo "::error title=APK missing::$apk was not produced"; exit 1; fi
+          size=$(stat -c %s "$apk")
+          if [ "$size" -lt 1000000 ]; then echo "::error title=APK too small::$apk is only $size bytes"; exit 1; fi
+          tests=$(grep -ho 'tests="[0-9]*"' app/build/test-results/testDebugUnitTest/*.xml | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}')
+          failures=$(grep -ho 'failures="[0-9]*"' app/build/test-results/testDebugUnitTest/*.xml | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}')
+          echo "APK: $size bytes. Unit tests: $tests run, $failures failed." | tee -a "$GITHUB_STEP_SUMMARY"
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk "dist/Neer-Zen-2.1-build${{ github.run_number }}.apk"
+          cp "$apk" "dist/Neer-Zen-2.1-build${{ github.run_number }}.apk"
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Neer-Zen-APK
           path: dist/*.apk
           if-no-files-found: error
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: build-${{ github.run_number }}
           target_commitish: ${{ github.sha }}
@@ -82,7 +103,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: Neer-Zen-APK
           path: apk
