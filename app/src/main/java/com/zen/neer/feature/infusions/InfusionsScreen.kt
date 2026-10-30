@@ -176,6 +176,7 @@ internal fun steepLabel(minutes: Int): String =
 
 @Composable
 internal fun InfusionsScreen(onStartSteep: (Int) -> Unit, onOpenSettings: () -> Unit) {
+    val reduced = LocalReducedMotion.current
     var selected by rememberSaveable { mutableStateOf(-1) }
     var filter by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -183,7 +184,7 @@ internal fun InfusionsScreen(onStartSteep: (Int) -> Unit, onOpenSettings: () -> 
 
     AnimatedContent(
         targetState = selected,
-        transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(160)) },
+        transitionSpec = { Motion.crossfade(reduced) },
         label = "infusion-nav"
     ) { index ->
         val inf = infusions.getOrNull(index)

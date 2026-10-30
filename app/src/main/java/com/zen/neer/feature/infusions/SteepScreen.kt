@@ -56,6 +56,7 @@ import kotlin.math.sin
 /** Full-screen steep timer: countdown ring, deepening infusion and an explicit finish. */
 @Composable
 internal fun SteepScreen(steep: SteepTimer, inf: Infusion) {
+    val reduced = LocalReducedMotion.current
     BackHandler { steep.dismiss() }
 
     val done = steep.done
@@ -63,7 +64,7 @@ internal fun SteepScreen(steep: SteepTimer, inf: Infusion) {
     val total = steep.totalMs.coerceAtLeast(1L)
     val progress by animateFloatAsState(
         targetValue = (1f - remaining.toFloat() / total.toFloat()).coerceIn(0f, 1f),
-        animationSpec = tween(1000, easing = LinearEasing),
+        animationSpec = Motion.follow(),
         label = "steep-progress"
     )
     val clock = formatClock(((remaining + 999L) / 1000L).toInt())
@@ -131,7 +132,7 @@ internal fun SteepScreen(steep: SteepTimer, inf: Infusion) {
                         IllustrationInfusionGlass(inf.herb, Modifier.size(ring * 0.38f), fill = { progress }, showSprig = false)
                         AnimatedContent(
                             targetState = done,
-                            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(160)) },
+                            transitionSpec = { Motion.crossfade(reduced) },
                             label = "steep-centre"
                         ) { isDone ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {

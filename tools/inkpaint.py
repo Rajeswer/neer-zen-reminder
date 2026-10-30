@@ -627,27 +627,17 @@ def asset_botanicals(out):
         c.image().save(os.path.join(out, name), "WEBP", quality=88, method=6)
 
 
-def asset_stone_bowl(out):
-    """
-    Focus vessel: a hand-cut stone basin, side view, in ink wash. The opening is left as a
-    dark recess; the app paints the water inside it so the level can rise with focus time.
-    Geometry (fractions of image width W; image height = 0.5833 W):
-      opening ellipse centre (0.5 W, 0.1833 W), radii (0.392 W, 0.0833 W)
-    """
-    rng = np.random.default_rng(808)
-    w, h = 1200, 700
+def stone_basin(w, h, cx, rim_y, rx_o, ry_o, rx_i, ry_i, base_y, seed, profile=0.42, chisels=18):
+    """Hand-cut stone basin, side view, in layered ink wash with a dark recess for water."""
+    rng = np.random.default_rng(seed)
     c = Canvas(h, w)
-    cx, rim_y = w / 2, 220.0
-    rx_o, ry_o = 520.0, 120.0
-    rx_i, ry_i = 470.0, 100.0
-    base_y = 610.0
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     # ground shadow wash
     sh = np.exp(-(((xx - cx) / (rx_o * 0.72)) ** 2) - (((yy - base_y + 4) / 18) ** 2))
     c.paint(sh * 0.35 * (0.7 + 0.5 * fbm(h, w, 60, 3, rng, aniso=(0.3, 3.0))), STONE_MID)
     # body: below the rim, bowl-shaped profile
     u = np.clip((xx - cx) / rx_o, -1.5, 1.5)
-    bottom = rim_y + (base_y - rim_y) * np.clip(1 - u ** 2, 0, 1) ** 0.42
+    bottom = rim_y + (base_y - rim_y) * np.clip(1 - u ** 2, 0, 1) ** profile
     body = ((yy >= rim_y) & (yy <= bottom) & (np.abs(u) <= 1)).astype(np.float32)
     rimmask = (((xx - cx) / rx_o) ** 2 + ((yy - rim_y) / ry_o) ** 2 <= 1).astype(np.float32)
     stone = np.clip(body + rimmask, 0, 1)
@@ -660,7 +650,7 @@ def asset_stone_bowl(out):
     layers = np.where(tone > 0.66, 0.95, np.where(tone > 0.42, 0.7, 0.4))
     c.paint(ndimage.gaussian_filter(layers * stone, 0.9), CHARCOAL)
     # horizontal chisel marks across the body (dry brush)
-    for _ in range(18):
+    for _ in range(chisels):
         y0 = rim_y + 40 + rng.random() * (base_y - rim_y - 80)
         span = rx_o * (0.4 + rng.random() * 0.6)
         x0 = cx - rx_o * 0.95 + rng.random() * (rx_o * 1.9 - span)
@@ -679,17 +669,111 @@ def asset_stone_bowl(out):
     edge = np.abs(np.sqrt(((xx - cx) / rx_o) ** 2 + ((yy - rim_y) / ry_o) ** 2) - 1) < 0.012
     breaks = np.clip((fbm(h, w, 30, 3, rng) - 0.3) / 0.25, 0, 1)
     c.paint(ndimage.gaussian_filter(edge.astype(np.float32), 1.0) * breaks * 0.9, SUMI)
+    return c
+
+
+def asset_stone_bowl(out):
+    """
+    Focus vessel: a hand-cut stone basin, side view, in ink wash. The opening is left as a
+    dark recess; the app paints the water inside it so the level can rise with focus time.
+    Geometry (fractions of image width W; image height = 0.5833 W):
+      opening ellipse centre (0.5 W, 0.1833 W), radii (0.392 W, 0.0833 W)
+    """
+    c = stone_basin(1200, 700, 600.0, 220.0, 520.0, 120.0, 470.0, 100.0, 610.0, seed=808)
     c.image().save(os.path.join(out, "illustration_stone_bowl.webp"), "WEBP", quality=86, method=6)
+
+
+def asset_stone_basin(out):
+    """
+    Mindful Sip: a shallow, wide stone basin that catches the fountain's droplets.
+    Geometry (fractions of image width W; image height = 0.375 W):
+      opening ellipse centre (0.5 W, 0.125 W), radii (0.4083 W, 0.0650 W)
+    """
+    c = stone_basin(1200, 450, 600.0, 150.0, 540.0, 95.0, 490.0, 78.0, 380.0, seed=818, profile=0.30, chisels=12)
+    c.image().save(os.path.join(out, "illustration_stone_basin.webp"), "WEBP", quality=86, method=6)
+
+
+def bamboo_tube(c, pts, width, rng, nodes=(), tone=CHARCOAL, load=0.92, dry_start=0.45):
+    """One straight bamboo segment run: dry-brush body, a pale highlight band and dark nodes."""
+    h, w = c.h, c.w
+    pts = np.asarray(pts, np.float32)
+    n = len(pts)
+    wd = np.full(n, width, np.float32)
+    wd[:3] *= 1.1
+    c.paint(ribbon_stroke(h, w, pts, wd, rng, load=load, dry_start=dry_start, dryness=0.8, edge_dark=0.7,
+                          rough=0.04, streak_rows=30, streak_len=16.0) * 0.92, tone)
+    # highlight: a thin lifted band along the upper third of the tube
+    d = pts[-1] - pts[0]
+    d = d / (np.hypot(*d) + 1e-6)
+    nrm = np.array([d[1], -d[0]])
+    hl = pts + nrm * width * 0.18
+    c.erase(ribbon_stroke(h, w, hl, np.full(n, width * 0.16), rng, load=0.5, dry_start=0.0, dryness=1.2,
+                          edge_dark=0.0, rough=0.2, streak_rows=10, streak_len=10.0) * 0.28)
+    for f in nodes:
+        p = pts[0] + (pts[-1] - pts[0]) * f
+        a, b = p - nrm * width * 0.62, p + nrm * width * 0.62
+        node = curve(a, a + (b - a) * 0.33 + d * width * 0.08, a + (b - a) * 0.66 + d * width * 0.08, b, 12)
+        c.paint(bristle_stroke(h, w, node, np.full(12, width * 0.2), rng, bristles=8, load=1.0, dryness=0.2, blur=0.7), SUMI)
+
+
+def asset_bamboo_spout(out):
+    """
+    Mindful Sip: a kakei, the bamboo spout of a garden water basin. A vertical post with a
+    slanted cut rises from the mist, and a slender pipe runs from it to an angled cut where
+    droplets form. The drip point is printed when the asset is painted.
+    """
+    rng = np.random.default_rng(909)
+    w, h = 900, 640
+    c = Canvas(h, w)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    post_x, post_top = 150.0, 70.0
+    post_w = 64.0
+    post = np.stack([np.full(40, post_x), np.linspace(post_top - 30, h + 20, 40)], axis=1)
+    bamboo_tube(c, post, post_w, rng, nodes=(0.36, 0.7), tone=STONE_MID, dry_start=0.6)
+    # slanted cut across the top of the post, with its dark hollow
+    cut = post_top + 40 - (xx - post_x) * 0.55
+    c.erase(np.clip((cut - yy) / 1.5 + 0.5, 0, 1))
+    hollow = ((((xx - post_x) * 0.877 + (yy - (post_top + 40)) * 0.48) / (post_w * 0.5)) ** 2
+              + (((xx - post_x) * -0.48 + (yy - (post_top + 40)) * 0.877) / 7.0) ** 2) <= 1
+    c.paint(ndimage.gaussian_filter(hollow.astype(np.float32), 1.0) * 0.85 * (yy >= cut - 8), SUMI)
+    # pipe from the post to the cut, falling gently to the right
+    p0 = np.array([post_x - 6, 200.0])
+    p1 = np.array([822.0, 240.0])
+    pipe_w = 40.0
+    pipe = np.stack([np.linspace(p0[0], p1[0] + 30, 50), np.linspace(p0[1], p1[1] + 30 * (p1[1] - p0[1]) / (p1[0] - p0[0]), 50)], axis=1)
+    bamboo_tube(c, pipe, pipe_w, rng, nodes=(0.4, 0.8), tone=CHARCOAL, load=1.0, dry_start=0.8)
+    # angled cut at the tip, leaning back so the mouth faces down and forward
+    d = (p1 - p0) / np.hypot(*(p1 - p0))
+    a = math.radians(32)
+    ncut = np.array([d[0] * math.cos(a) - d[1] * math.sin(a), d[0] * math.sin(a) + d[1] * math.cos(a)])
+    beyond = (xx - p1[0]) * ncut[0] + (yy - p1[1]) * ncut[1]
+    c.erase(np.clip(beyond / 1.5 + 0.5, 0, 1) * (xx > post_x + post_w))
+    along = np.array([-ncut[1], ncut[0]])
+    mouth = ((((xx - p1[0]) * along[0] + (yy - p1[1]) * along[1]) / (pipe_w * 0.56)) ** 2
+             + (((xx - p1[0]) * ncut[0] + (yy - p1[1]) * ncut[1] + 5) / 5.5) ** 2) <= 1
+    c.paint(ndimage.gaussian_filter(mouth.astype(np.float32), 0.9) * 0.92, SUMI)
+    # binding where the pipe enters the post
+    for k in range(3):
+        bx = post_x + post_w * 0.36 + k * 7
+        rope = curve((bx, 200 - pipe_w * 0.8), (bx + 3, 192), (bx + 3, 208), (bx, 200 + pipe_w * 0.8), 14)
+        c.paint(bristle_stroke(h, w, rope, np.full(14, 3.2), rng, bristles=5, load=0.9, dryness=0.8, blur=0.6), SUMI)
+    # the post fades into mist below
+    Y = np.linspace(0, 1, h)[:, None]
+    c.erase(np.broadcast_to(np.clip((Y - 0.6) / 0.38, 0, 1) ** 1.3, (h, w)))
+    # droplets gather at the lowest point of the cut
+    low = p1 + along * pipe_w * 0.5 * (1 if along[1] > 0 else -1)
+    print("spout drip point (fractions):", round(float(low[0]) / w, 4), round(float(low[1]) / h, 4))
+    c.image().save(os.path.join(out, "illustration_bamboo_spout.webp"), "WEBP", quality=86, method=6)
 
 
 if __name__ == "__main__":
     out = sys.argv[1]
     os.makedirs(out, exist_ok=True)
-    which = sys.argv[2:] or ["paper", "enso", "water", "bamboo", "mist", "landscape", "botanicals", "bowl"]
+    which = sys.argv[2:] or ["paper", "enso", "water", "bamboo", "mist", "landscape", "botanicals", "bowl", "basin", "spout"]
     table = {
         "paper": asset_paper, "enso": asset_enso, "water": asset_water_surface, "bamboo": asset_bamboo,
         "mist": asset_mountain_mist, "landscape": asset_landscape_sip, "botanicals": asset_botanicals,
-        "bowl": asset_stone_bowl,
+        "bowl": asset_stone_bowl, "basin": asset_stone_basin, "spout": asset_bamboo_spout,
     }
     for k in which:
         table[k](out)

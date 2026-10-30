@@ -8,10 +8,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -75,6 +76,8 @@ import com.zen.neer.data.*
 import com.zen.neer.design.components.*
 import com.zen.neer.design.illustration.*
 import com.zen.neer.design.theme.*
+import com.zen.neer.domain.SipEvent
+import com.zen.neer.domain.SipPhase
 import com.zen.neer.feature.focus.*
 import com.zen.neer.feature.infusions.*
 import com.zen.neer.feature.mindfulsip.*
@@ -121,6 +124,8 @@ private fun NeerApp(store: NeerStore) {
     var sipsToday by remember { mutableIntStateOf(store.loadPebbles()) }
     val focus = remember { FocusTimer(store) }
     val steep = remember { SteepTimer(store, infusions.size) }
+    // The Mindful Sip session lives here, above the tabs, so navigation can never drop it.
+    val sip = remember { SipSessionController() }
     var tab by rememberSaveable { mutableStateOf(TAB_SIP) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showSplash by rememberSaveable { mutableStateOf(true) }
@@ -129,6 +134,8 @@ private fun NeerApp(store: NeerStore) {
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
+            // Leaving the app pauses a sip session; coming back shows Resume / End.
+            if (event == Lifecycle.Event.ON_STOP) sip.pause()
             if (event == Lifecycle.Event.ON_RESUME) {
                 sipsToday = store.loadPebbles()
                 val t = System.currentTimeMillis()
@@ -147,6 +154,21 @@ private fun NeerApp(store: NeerStore) {
     val resetToday: () -> Unit = {
         sipsToday = 0
         store.savePebbles(0)
+    }
+
+    RunSipSession(sip) { event ->
+        when (event) {
+            is SipEvent.PhaseChanged -> when (event.phase) {
+                SipPhase.Inhale, SipPhase.Sip, SipPhase.Exhale -> feedback.tick()
+                else -> Unit
+            }
+            // The only place a sip is recorded: once, when the 12 seconds complete.
+            SipEvent.SipRecorded -> {
+                feedback.complete(withSound = false)
+                recordSip()
+            }
+            else -> Unit
+        }
     }
 
     // Timers tick above the screens so they keep running on any tab.
@@ -183,12 +205,14 @@ private fun NeerApp(store: NeerStore) {
 
     LaunchedEffect(showSplash) {
         if (showSplash) {
-            delay(if (reduced) 600L else 1600L)
+            delay(if (reduced) 600L else 1800L)
             showSplash = false
         }
     }
 
     BackHandler(enabled = tab != TAB_SIP && !showSettings && !steep.active) { tab = TAB_SIP }
+    // During a session Back ends it (nothing is recorded); once the sip is recorded it waits.
+    BackHandler(enabled = sip.isActive && !showSettings) { sip.cancel() }
 
     val lastSteep = remember { IntArray(1) }
     if (steep.active) lastSteep[0] = steep.index
@@ -196,7 +220,16 @@ private fun NeerApp(store: NeerStore) {
     Box(Modifier.fillMaxSize().ashCanvas()) {
         Scaffold(
             containerColor = Color.Transparent,
-            bottomBar = { ZenBottomNavigation(selected = tab, onSelect = { tab = it }) }
+            bottomBar = {
+                // Hidden during a sip session: one focal point, no way to wander off mid-breath.
+                AnimatedVisibility(
+                    visible = !sip.isActive,
+                    enter = if (reduced) fadeIn(tween(Motion.reducedMs)) else expandVertically(Motion.gentle(), expandFrom = Alignment.Top) + fadeIn(Motion.gentle()),
+                    exit = if (reduced) fadeOut(tween(Motion.reducedMs)) else shrinkVertically(Motion.gentle(), shrinkTowards = Alignment.Top) + fadeOut(tween(Motion.exitMs, easing = Motion.depart))
+                ) {
+                    ZenBottomNavigation(selected = tab, onSelect = { tab = it })
+                }
+            }
         ) { padding ->
             AnimatedContent(
                 targetState = tab,
@@ -205,22 +238,21 @@ private fun NeerApp(store: NeerStore) {
                     .padding(padding),
                 transitionSpec = {
                     if (reduced) {
-                        fadeIn(tween(120)) togetherWith fadeOut(tween(90))
+                        Motion.crossfade(reduced = true)
                     } else {
+                        // A slow cross-fade with a slight drift toward the chosen tab.
                         val dir = if (targetState > initialState) 1 else -1
-                        (fadeIn(tween(260, delayMillis = 60)) +
-                            slideInHorizontally(tween(320, easing = FastOutSlowInEasing)) { it * dir / 16 }) togetherWith
-                            (fadeOut(tween(160)) + slideOutHorizontally(tween(260, easing = FastOutSlowInEasing)) { -it * dir / 24 })
+                        (Motion.enter() + slideInHorizontally(tween(Motion.calmMs, easing = Motion.arrive)) { it * dir / 24 }) togetherWith
+                            (Motion.exit() + slideOutHorizontally(tween(Motion.exitMs, easing = Motion.depart)) { -it * dir / 32 })
                     }
                 },
                 label = "tabs"
             ) { page ->
                 when (page) {
                     TAB_SIP -> SipScreen(
+                        controller = sip,
                         sipsToday = sipsToday,
                         dailyGoal = settings.dailyGoal,
-                        feedback = feedback,
-                        onRitualComplete = recordSip,
                         onOpenSettings = { showSettings = true }
                     )
                     TAB_FOCUS -> FocusScreen(
@@ -239,7 +271,7 @@ private fun NeerApp(store: NeerStore) {
             }
         }
 
-        AnimatedVisibility(visible = showSettings, enter = fadeIn(tween(220)), exit = fadeOut(tween(180))) {
+        AnimatedVisibility(visible = showSettings, enter = Motion.enter(reduced), exit = Motion.exit(reduced)) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -256,11 +288,11 @@ private fun NeerApp(store: NeerStore) {
             }
         }
 
-        AnimatedVisibility(visible = steep.active, enter = fadeIn(tween(260)), exit = fadeOut(tween(200))) {
+        AnimatedVisibility(visible = steep.active, enter = Motion.enter(reduced, Motion.gentleMs), exit = Motion.exit(reduced)) {
             SteepScreen(steep = steep, inf = infusions[lastSteep[0].coerceIn(0, infusions.size - 1)])
         }
 
-        AnimatedVisibility(visible = showSplash, enter = fadeIn(tween(1)), exit = fadeOut(tween(if (reduced) 1 else 500))) {
+        AnimatedVisibility(visible = showSplash, enter = fadeIn(tween(1)), exit = fadeOut(tween(if (reduced) Motion.reducedMs else Motion.gentleMs, easing = Motion.breath))) {
             Splash(onSkip = { showSplash = false })
         }
     }

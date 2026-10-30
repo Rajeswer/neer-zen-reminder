@@ -21,7 +21,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -70,11 +73,8 @@ private const val ART_ASPECT = 1.12f
 
 @Composable
 internal fun FocusScreen(timer: FocusTimer, onBreakComplete: () -> Unit, onOpenSettings: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
+    val reduced = LocalReducedMotion.current
+    Column(Modifier.fillMaxSize()) {
         ZenTopBar(
             title = "Focus Vessel",
             actionIcon = Icons.Outlined.Settings,
@@ -88,51 +88,53 @@ internal fun FocusScreen(timer: FocusTimer, onBreakComplete: () -> Unit, onOpenS
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(horizontal = Space.screenInset)
         )
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val artWidth = minOf(maxWidth - 40.dp, 340.dp).coerceAtLeast(240.dp)
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Space.screenInset)
-                    .padding(bottom = Space.s24),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                AnimatedContent(
-                    targetState = timer.mode == FocusMode.Complete,
-                    transitionSpec = {
-                        fadeIn(tween(420, delayMillis = 100)) togetherWith fadeOut(tween(200)) using SizeTransform(clip = false)
+        AnimatedContent(
+            targetState = timer.mode == FocusMode.Complete,
+            transitionSpec = { Motion.crossfade(reduced, Motion.gentleMs) using SizeTransform(clip = false) },
+            label = "focus-state",
+            modifier = Modifier.weight(1f)
+        ) { complete ->
+            if (!complete) {
+                ActiveFocus(timer)
+            } else {
+                MindfulBreak(
+                    onLog = {
+                        // Guard against a double tap during the exit transition.
+                        if (timer.mode == FocusMode.Complete) {
+                            timer.finishBreak()
+                            onBreakComplete()
+                        }
                     },
-                    label = "focus-state"
-                ) { complete ->
-                    if (!complete) {
-                        ActiveFocus(timer, artWidth)
-                    } else {
-                        MindfulBreak(
-                            artWidth = artWidth,
-                            onLog = {
-                                // Guard against a double tap during the exit transition.
-                                if (timer.mode == FocusMode.Complete) {
-                                    timer.finishBreak()
-                                    onBreakComplete()
-                                }
-                            },
-                            onSkip = { timer.finishBreak() }
-                        )
-                    }
-                }
+                    onSkip = { timer.finishBreak() }
+                )
             }
         }
     }
 }
 
+/** Vessel in the flexible middle; presets and controls in a fixed region at the bottom. */
 @Composable
-private fun ActiveFocus(timer: FocusTimer, artWidth: Dp) {
+private fun ActiveFocus(timer: FocusTimer) {
     val running = timer.mode == FocusMode.Running
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        FocusDial(timer, artWidth)
-        Spacer(Modifier.height(Space.s16))
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = Space.screenInset),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        BoxWithConstraints(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            val artWidth = minOf(maxWidth, maxHeight / ART_ASPECT, 340.dp).coerceAtLeast(180.dp)
+            FocusDial(timer, artWidth)
+        }
         Row(
-            Modifier.selectableGroup(),
+            Modifier
+                .padding(top = Space.s8)
+                .selectableGroup(),
             horizontalArrangement = Arrangement.spacedBy(Space.s12)
         ) {
             FOCUS_PRESETS.forEach { m ->
@@ -144,27 +146,34 @@ private fun ActiveFocus(timer: FocusTimer, artWidth: Dp) {
                 )
             }
         }
-        Spacer(Modifier.height(Space.s24))
-        when (timer.mode) {
-            FocusMode.Idle -> ZenPrimaryButton(
-                text = "Start focus",
-                icon = Icons.Outlined.PlayArrow,
-                onClick = { timer.start() },
-                modifier = Modifier.fillMaxWidth()
-            )
-            else -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s12)) {
-                ZenPrimaryButton(
-                    text = if (running) "Pause" else "Resume",
-                    icon = if (running) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                    onClick = { if (running) timer.pause() else timer.start() },
-                    modifier = Modifier.weight(1f)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = Space.s16, bottom = Space.s16)
+                .heightIn(min = 56.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when (timer.mode) {
+                FocusMode.Idle -> ZenPrimaryButton(
+                    text = "Start focus",
+                    icon = Icons.Outlined.PlayArrow,
+                    onClick = { timer.start() },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                ZenSecondaryButton(
-                    text = "Reset",
-                    icon = Icons.Outlined.Refresh,
-                    onClick = { timer.reset() },
-                    modifier = Modifier.weight(1f)
-                )
+                else -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.s12)) {
+                    ZenSecondaryButton(
+                        text = "Reset",
+                        icon = Icons.Outlined.Refresh,
+                        onClick = { timer.reset() },
+                        modifier = Modifier.weight(1f)
+                    )
+                    ZenPrimaryButton(
+                        text = if (running) "Pause" else "Resume",
+                        icon = if (running) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                        onClick = { if (running) timer.pause() else timer.start() },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
@@ -177,7 +186,7 @@ private fun FocusDial(timer: FocusTimer, artWidth: Dp) {
     val target = (1f - remaining.toFloat() / total.toFloat()).coerceIn(0f, 1f)
     val progress by animateFloatAsState(
         targetValue = target,
-        animationSpec = if (timer.mode == FocusMode.Running) tween(1000, easing = LinearEasing) else tween(500, easing = FastOutSlowInEasing),
+        animationSpec = if (timer.mode == FocusMode.Running) Motion.follow() else Motion.calm(),
         label = "focus-progress"
     )
     val clock = formatClock(((remaining + 999L) / 1000L).toInt())
@@ -216,7 +225,7 @@ private fun FocusArt(progress: () -> Float, flowing: Boolean, modifier: Modifier
         rememberInfiniteTransition(label = "flow").animateFloat(
             initialValue = 0f,
             targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(3000, easing = LinearEasing)),
+            animationSpec = infiniteRepeatable(tween(Motion.rippleMs.toInt() * 2, easing = LinearEasing)),
             label = "flow-t"
         )
     } else {
@@ -257,12 +266,21 @@ private fun FocusArt(progress: () -> Float, flowing: Boolean, modifier: Modifier
 }
 
 @Composable
-private fun MindfulBreak(artWidth: Dp, onLog: () -> Unit, onSkip: () -> Unit) {
+private fun MindfulBreak(onLog: () -> Unit, onSkip: () -> Unit) {
     val bowl = ImageBitmap.imageResource(R.drawable.illustration_stone_bowl)
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Space.screenInset)
+            .padding(bottom = Space.s16),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Box(
             Modifier
-                .size(artWidth, artWidth * 0.62f)
+                .widthIn(max = 340.dp)
+                .fillMaxWidth()
+                .aspectRatio(1f / 0.62f)
                 .clearAndSetSemantics { }
         ) {
             IllustrationMountainMist(Modifier.fillMaxSize(), seed = 12L)

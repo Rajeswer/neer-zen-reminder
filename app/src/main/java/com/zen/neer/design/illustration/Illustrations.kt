@@ -328,9 +328,9 @@ internal fun DrawScope.drawWaterSurface(center: Offset, halfWidth: Float, alpha:
 
 /**
  * The ripple a single droplet makes on landing, drawn as broken brush arcs rather than
- * clean ellipses. [t] 0..1 over Motion.rippleMs.
+ * clean ellipses. [t] 0..1 over Motion.rippleMs; [flatten] is the ring's height/width ratio.
  */
-internal fun DrawScope.drawLandingRipple(center: Offset, maxRadius: Float, t: Float) {
+internal fun DrawScope.drawLandingRipple(center: Offset, maxRadius: Float, t: Float, flatten: Float = 0.22f) {
     if (t <= 0f || t >= 1f) return
     val base = 1.4.dp.toPx()
     for (j in 0 until 2) {
@@ -338,7 +338,7 @@ internal fun DrawScope.drawLandingRipple(center: Offset, maxRadius: Float, t: Fl
         if (u <= 0f || u >= 1f) continue
         val eased = 1f - (1f - u) * (1f - u)
         val rx = maxRadius * (0.08f + 0.92f * eased)
-        val ry = rx * 0.22f
+        val ry = rx * flatten
         val fade = 1f - u
         // three uneven arcs per ring, with gaps, thicker toward the viewer
         for (k in 0 until 3) {
@@ -452,7 +452,7 @@ private fun stoneOutline(m: FloatArray, c: Offset, r: Float): Path {
 internal fun RiverStoneProgress(count: Int, goal: Int, modifier: Modifier = Modifier, markNext: Boolean = true) {
     val animated by animateFloatAsState(
         targetValue = count.coerceAtMost(goal).toFloat(),
-        animationSpec = tween(700, easing = FastOutSlowInEasing),
+        animationSpec = Motion.gentle(),
         label = "stones"
     )
     val shapes = remember(goal) {

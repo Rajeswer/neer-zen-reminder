@@ -152,7 +152,7 @@ internal fun ZenTopBar(
 @Composable
 private fun pressedScale(source: MutableInteractionSource): Float {
     val pressed by source.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(Motion.controlMs), label = "press")
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, Motion.press(), label = "press")
     return scale
 }
 
