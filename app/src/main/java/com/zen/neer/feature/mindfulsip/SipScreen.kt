@@ -172,12 +172,15 @@ private fun Ritual(controller: SipSessionController, sipsToday: Int, dailyGoal: 
                         }
                     }
             ) {
-                IllustrationLandscape(
+                // Mirrored so the pine stands opposite the spout post.
+                InkArtwork(
+                    R.drawable.illustration_landscape_sumi,
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .height(side * 0.62f),
-                    alpha = 0.85f
+                    alpha = 0.85f,
+                    mirrored = true
                 )
                 FountainEnso(controller, reduced, Modifier.fillMaxSize())
             }
@@ -396,7 +399,7 @@ private fun FountainEnso(controller: SipSessionController, reduced: Boolean, mod
         drawBambooSpout(spout, drip, dim * 0.64f)
 
         // 5. Impact, then the droplet.
-        val d = dim * 0.040f
+        val d = dim * 0.050f
         if (!reduced && ripple != null && ripple < IMPACT_FRACTION) {
             drawImpact(water, d * 1.6f, ripple / IMPACT_FRACTION)
         }

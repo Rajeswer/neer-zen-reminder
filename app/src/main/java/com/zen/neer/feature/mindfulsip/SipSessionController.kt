@@ -63,8 +63,7 @@ internal class SipSessionController(timing: SipTiming = SipTiming()) {
 
 /**
  * Drives the session from display frames while it is running. Keyed on running state, so
- * recomposition never starts a second loop. Frames stop when the app is in the background;
- * each step is also capped, so a stalled frame can't jump the ritual forward.
+ * recomposition never starts a second loop.
  */
 @Composable
 internal fun RunSipSession(controller: SipSessionController, onEvent: (SipEvent) -> Unit) {
@@ -82,4 +81,8 @@ internal fun RunSipSession(controller: SipSessionController, onEvent: (SipEvent)
     }
 }
 
-private const val MAX_FRAME_STEP_MS = 64L
+/**
+ * Leaving the app pauses the session explicitly (ON_STOP), so this cap only guards against
+ * a long stall. It is generous so slow devices keep the countdown in step with real time.
+ */
+private const val MAX_FRAME_STEP_MS = 250L

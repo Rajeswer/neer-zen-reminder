@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -57,6 +58,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -213,6 +217,7 @@ private fun NeerApp(store: NeerStore) {
     BackHandler(enabled = tab != TAB_SIP && !showSettings && !steep.active) { tab = TAB_SIP }
     // During a session Back ends it (nothing is recorded); once the sip is recorded it waits.
     BackHandler(enabled = sip.isActive && !showSettings) { sip.cancel() }
+    BackHandler(enabled = sip.phase == SipPhase.Completed && !showSettings) { sip.acknowledge() }
 
     val lastSteep = remember { IntArray(1) }
     if (steep.active) lastSteep[0] = steep.index
@@ -221,13 +226,26 @@ private fun NeerApp(store: NeerStore) {
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                // Hidden during a sip session: one focal point, no way to wander off mid-breath.
-                AnimatedVisibility(
-                    visible = !sip.isActive,
-                    enter = if (reduced) fadeIn(tween(Motion.reducedMs)) else expandVertically(Motion.gentle(), expandFrom = Alignment.Top) + fadeIn(Motion.gentle()),
-                    exit = if (reduced) fadeOut(tween(Motion.reducedMs)) else shrinkVertically(Motion.gentle(), shrinkTowards = Alignment.Top) + fadeOut(tween(Motion.exitMs, easing = Motion.depart))
+                // Fades away during a sip session (one focal point, no wandering off mid-breath)
+                // but keeps its space, so the Cancel slot stays exactly where Begin was.
+                val navAlpha by animateFloatAsState(
+                    targetValue = if (sip.isActive) 0f else 1f,
+                    animationSpec = if (reduced) tween(Motion.reducedMs) else Motion.gentle(),
+                    label = "nav"
+                )
+                Box(
+                    Modifier
+                        .graphicsLayer { alpha = navAlpha }
+                        .then(if (sip.isActive) Modifier.clearAndSetSemantics { } else Modifier)
                 ) {
                     ZenBottomNavigation(selected = tab, onSelect = { tab = it })
+                    if (sip.isActive) {
+                        Box(
+                            Modifier
+                                .matchParentSize()
+                                .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } }
+                        )
+                    }
                 }
             }
         ) { padding ->

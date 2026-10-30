@@ -69,7 +69,7 @@ internal class SipChoreography(private val timing: SipTiming) {
     }
 
     companion object {
-        const val MENISCUS = 0.38f
+        const val MENISCUS = 0.45f
 
         /** Sine in-out on 0..1, matching [Motion.breath]. */
         fun breathe(t: Float): Float = (0.5 - 0.5 * kotlin.math.cos(Math.PI * t.coerceIn(0f, 1f))).toFloat()
