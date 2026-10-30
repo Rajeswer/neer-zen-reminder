@@ -1,4 +1,4 @@
-package com.zen.neer
+package com.zen.neer.feature.focus
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -46,13 +46,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.zen.neer.R
+import com.zen.neer.data.*
+import com.zen.neer.design.components.*
+import com.zen.neer.design.illustration.*
+import com.zen.neer.design.theme.*
 import kotlin.math.cos
 import kotlin.math.sin
 

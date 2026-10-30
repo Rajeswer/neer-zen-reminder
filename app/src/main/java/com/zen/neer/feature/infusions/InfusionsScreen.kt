@@ -1,4 +1,4 @@
-package com.zen.neer
+package com.zen.neer.feature.infusions
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -53,6 +53,9 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zen.neer.design.components.*
+import com.zen.neer.design.illustration.*
+import com.zen.neer.design.theme.*
 
 internal enum class InfusionTime(val label: String) {
     Morning("Morning"),

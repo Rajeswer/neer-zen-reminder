@@ -70,6 +70,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.zen.neer.app.*
+import com.zen.neer.data.*
+import com.zen.neer.design.components.*
+import com.zen.neer.design.illustration.*
+import com.zen.neer.design.theme.*
+import com.zen.neer.feature.focus.*
+import com.zen.neer.feature.infusions.*
+import com.zen.neer.feature.mindfulsip.*
+import com.zen.neer.feature.settings.*
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {

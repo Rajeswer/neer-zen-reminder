@@ -1,4 +1,4 @@
-package com.zen.neer
+package com.zen.neer.design.illustration
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -32,6 +32,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.zen.neer.R
+import com.zen.neer.design.components.*
+import com.zen.neer.design.theme.*
 import kotlin.math.PI
 import kotlin.math.ceil
 import kotlin.math.cos

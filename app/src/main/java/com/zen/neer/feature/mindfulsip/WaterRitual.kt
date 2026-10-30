@@ -1,4 +1,6 @@
-package com.zen.neer
+package com.zen.neer.feature.mindfulsip
+
+import com.zen.neer.design.theme.*
 
 /**
  * Timing model for the Mindful Sip ritual.

@@ -1,4 +1,4 @@
-package com.zen.neer
+package com.zen.neer.data
 
 import android.content.Context
 import androidx.compose.runtime.Stable

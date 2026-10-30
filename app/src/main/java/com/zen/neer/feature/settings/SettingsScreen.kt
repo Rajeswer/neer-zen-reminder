@@ -1,4 +1,4 @@
-package com.zen.neer
+package com.zen.neer.feature.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
@@ -41,6 +41,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zen.neer.data.*
+import com.zen.neer.design.components.*
+import com.zen.neer.design.theme.*
 
 @Composable
 internal fun SettingsScreen(

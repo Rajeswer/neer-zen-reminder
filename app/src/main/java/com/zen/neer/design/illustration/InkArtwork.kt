@@ -1,4 +1,4 @@
-package com.zen.neer
+package com.zen.neer.design.illustration
 
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
@@ -19,6 +19,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import com.zen.neer.R
+import com.zen.neer.design.theme.*
 import kotlin.math.roundToInt
 
 /*

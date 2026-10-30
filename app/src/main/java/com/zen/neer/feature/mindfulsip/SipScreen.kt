@@ -1,4 +1,4 @@
-package com.zen.neer
+package com.zen.neer.feature.mindfulsip
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -52,8 +52,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -63,6 +63,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zen.neer.R
+import com.zen.neer.app.*
+import com.zen.neer.design.components.*
+import com.zen.neer.design.illustration.*
+import com.zen.neer.design.theme.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 

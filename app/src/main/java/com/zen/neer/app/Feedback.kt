@@ -1,10 +1,11 @@
-package com.zen.neer
+package com.zen.neer.app
 
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import com.zen.neer.data.*
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.min
